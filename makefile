@@ -1,7 +1,7 @@
 
 
-CFLAGS+= -g -O0 -Wall
-#CFLAGS+= -O2 -Wall
+#CFLAGS+= -g -O0 -Wall -ansi
+CFLAGS+= -O2 -Wall
 #CC=gcc
 ALL:
 	$(CC) $(CFLAGS) fru.c operating-system.c -o fru-dump
