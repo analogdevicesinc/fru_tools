@@ -393,7 +393,8 @@ void usage (void)
 		"    -v\tverbose (show warnings)\n"
 		"  set info (modifies output file)\n"
 		"    -d <num>\tset date (Number of minutes from 0:00 hrs 01Jan1996)\n"
-		"    -d <date>\tset date (Date in format)\n"
+		"    -d <date>\tset date (Date in RFC3339 format: 2012-12-21T15:12:30-05:00)\n"
+		"    -d now\tset the date to the current time\n"
 		"    -s <str>\tset serial number (string)\n"
 	);
 }
@@ -427,9 +428,14 @@ int main(int argc, char **argv)
 			
 			memset(&time_tm, 0, sizeof(struct tm));
 			memset(&time_1996, 0, sizeof(struct tm));
-	
-			p = strptime(optarg, "%Y-%m-%dT%H:%M:%S%z", &time_tm);
-			if (p) {
+
+			if (!strcmp(optarg, "now")) {
+				time_t tmp = time(NULL);
+				time_tm = *localtime(&tmp);
+			} else {
+				p = strptime(optarg, "%Y-%m-%dT%H:%M:%S%z", &time_tm);
+			}
+			if (p || time_tm.tm_year) {
 				time_1996.tm_year = 96;
 				time_1996.tm_mday = 1;
 				
