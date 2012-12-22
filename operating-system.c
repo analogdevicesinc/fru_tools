@@ -378,6 +378,11 @@ void dump_FMConnector (struct MULTIRECORD_INFO *fru)
 
 void usage (void)
 {
+	printf("fru_dump 0.8\n"
+		" Copyright (C) 2012  Analog Devices, Inc.\n"
+		" This is free software; see the source for copying conditions.\n"
+		" There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A\n"
+		" PARTICULAR PURPOSE.\n\n");
 	printf("dump information about FRU files for FMC Cards\n"
 		"  file options\n"
 		"    -i\tinput file\n"
