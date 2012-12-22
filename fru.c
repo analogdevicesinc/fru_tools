@@ -20,16 +20,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <strings.h>
 #include <string.h>
 #include <time.h>
 #include <stdarg.h>
-#include <err.h>
 #include <limits.h>
-#include <netinet/in.h>
 
 #include "fru.h"
 
@@ -146,8 +143,10 @@ unsigned int ascii2six(unsigned char *buf, size_t size, unsigned char **dest)
 		if ((i + 3) < size) {
 			k |= buf[i + 3] << 18;
 		}
-# if __BYTE_ORDER == __BIG_ENDIAN
+#ifndef __MINGW32__
+#if __BYTE_ORDER == __BIG_ENDIAN
 		k = __bswap_32(k);
+#endif
 #endif
 		memcpy(p, &k, 3);
 		p += 3;
@@ -586,8 +585,10 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, int packed
 			/* Type ID, Record Format version, Length, checksum, checksum */
 			sprintf((char *)&buf[i], "%c%c%c%c%c", MULTIRECORD_FMC, 0x02, len + 4, 0, 0);
 			/* Store OUI */
+#ifndef __MINGW32__
 # if __BYTE_ORDER == __BIG_ENDIAN
 			oui = __bswap_32(oui);
+#endif
 #endif
 			memcpy(&buf[i+5], &oui, 3);
 			/* Subtype & version  - see Table 9 in FMC spec*/

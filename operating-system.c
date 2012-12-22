@@ -21,7 +21,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/mman.h>
 #include <getopt.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -30,9 +29,6 @@
 #define __USE_XOPEN /* needed for strptime */
 #include <time.h>
 #include <stdarg.h>
-#include <err.h>
-
-
 
 
 #include "fru.h"
@@ -183,7 +179,7 @@ void dump_BOARD(struct BOARD_INFO *fru)
 {
 	unsigned int i, j;
 	time_t tmp = min2date(fru->mfg_date);
-	
+
 	printf("Date of Man  : %s", ctime(&tmp));
 	if (fru->manufacturer && fru->manufacturer[0] & 0x3F)
 		printf("Manufacture  : %s\n", &fru->manufacturer[1]);
@@ -385,15 +381,17 @@ void usage (void)
 	printf("dump information about FRU files for FMC Cards\n"
 		"  file options\n"
 		"    -i\tinput file\n"
-		"    -o\toutput file, only makes sense when changing something\n"
-		"  dump info\n"
+		"    -o\toutput file, only makes sense when changing something\n");
+	printf("  dump info\n"
 		"    -b\tdump board info\n"
 		"    -c\tdump connector info\n"
 		"    -p\tdump power supply info\n"
-		"    -v\tverbose (show warnings)\n"
-		"  set info (modifies output file)\n"
+		"    -v\tverbose (show warnings)\n");
+	printf("  set info (modifies output file)\n"
 		"    -d <num>\tset date (Number of minutes from 0:00 hrs 01Jan1996)\n"
+#ifndef __MINGW32__
 		"    -d <date>\tset date (Date in RFC3339 format: 2012-12-21T15:12:30-05:00)\n"
+#endif
 		"    -d now\tset the date to the current time\n"
 		"    -s <str>\tset serial number (string)\n"
 	);
@@ -401,7 +399,7 @@ void usage (void)
 
 int main(int argc, char **argv)
 {
-	char *input_file = NULL, *p;
+	char *input_file = NULL, *p = NULL;
 	char *serial = NULL;
 	char *output_file = NULL;
 	unsigned int date = 0;
@@ -431,9 +429,11 @@ int main(int argc, char **argv)
 
 			if (!strcmp(optarg, "now")) {
 				time_t tmp = time(NULL);
-				time_tm = *localtime(&tmp);
+				time_tm = *gmtime(&tmp);
 			} else {
+#ifndef __MINGW32__
 				p = strptime(optarg, "%Y-%m-%dT%H:%M:%S%z", &time_tm);
+#endif
 			}
 			if (p || time_tm.tm_year) {
 				time_1996.tm_year = 96;
@@ -492,7 +492,6 @@ int main(int argc, char **argv)
 		free(fru->Board_Area->serial_number);
 		fru->Board_Area->serial_number = x_calloc(1, strlen(serial)+3);
 		fru->Board_Area->serial_number[0] = strlen(serial);
-		printf("len : %i\n", strlen(serial));
 		memcpy(&fru->Board_Area->serial_number[1], serial, strlen(serial));
 		printf_info("changing serial number to %s\n", serial);
 	}
