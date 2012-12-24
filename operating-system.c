@@ -56,6 +56,7 @@ void printf_err (const char * fmt, ...)
 {
 	va_list ap;
 	va_start(ap,fmt);
+	printf("fru_dump %s\n", VERSION);
 	vfprintf(stderr,fmt,ap);
 	va_end(ap);
 	exit(EXIT_FAILURE);
@@ -378,8 +379,8 @@ void dump_FMConnector (struct MULTIRECORD_INFO *fru)
 
 void usage (void)
 {
-	printf("fru_dump 0.8\n"
-		" Copyright (C) 2012  Analog Devices, Inc.\n"
+	printf("fru_dump %s\n", VERSION);
+	printf(" Copyright (C) 2012  Analog Devices, Inc.\n"
 		" This is free software; see the source for copying conditions.\n"
 		" There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A\n"
 		" PARTICULAR PURPOSE.\n\n");
