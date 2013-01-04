@@ -246,8 +246,10 @@ const char * DC_Loads[] = {
 
 void dump_MULTIRECORD (struct MULTIRECORD_INFO *fru)
 {
-	unsigned char *p, *n;
+	unsigned char *p, *n, *z;
 	int i;
+
+	z = x_calloc(1, 12);
 
 	for (i= 0; i <= NUM_SUPPLIES; i++) {
 		if (!fru->supplies[i])
@@ -258,13 +260,15 @@ void dump_MULTIRECORD (struct MULTIRECORD_INFO *fru)
 			case 1:
 				printf("DC Output\n");
 				printf("  Output Number: %d (%s)\n", n[0] & 0xF, DC_Loads[n[0] & 0xF]);
-				printf("  Nominal volts:              %d (mV)\n", (n[ 1] | (n[ 2] << 8)) * 10);
-				printf("  Maximum negative deviation: %d (mV)\n", (n[ 3] | (n[ 4] << 8)) * 10);
-				printf("  Maximum positive deviation: %d (mV)\n", (n[ 5] | (n[ 6] << 8)) * 10);
-				printf("  Ripple and Noise pk-pk:     %d (mV)\n",  n[ 7] | (n[ 8] << 8));
-				printf("  Minimum current draw:       %d (mA)\n",  n[ 9] | (n[10] << 8));
-				printf("  Maximum current draw:       %d (mA)\n",  n[11] | (n[12] << 8));
-
+				if (memcmp(&n[1], z, 11)) {
+					printf("  Nominal volts:              %d (mV)\n", (n[ 1] | (n[ 2] << 8)) * 10);
+					printf("  Maximum negative deviation: %d (mV)\n", (n[ 3] | (n[ 4] << 8)) * 10);
+					printf("  Maximum positive deviation: %d (mV)\n", (n[ 5] | (n[ 6] << 8)) * 10);
+					printf("  Ripple and Noise pk-pk:     %d (mV)\n",  n[ 7] | (n[ 8] << 8));
+					printf("  Minimum current draw:       %d (mA)\n",  n[ 9] | (n[10] << 8));
+					printf("  Maximum current draw:       %d (mA)\n",  n[11] | (n[12] << 8));
+				} else 
+					printf("  All Zeros\n");
 				break;
 			case 2:
 				printf("DC Load\n");
