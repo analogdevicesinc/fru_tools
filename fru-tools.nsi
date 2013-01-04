@@ -23,7 +23,7 @@
   InstallDirRegKey HKCU "Software\Analog Devices\fru-tools" ""
 
   ;Request application privileges for Windows Vista
-  RequestExecutionLevel user
+  RequestExecutionLevel admin
 
   LicenseForceSelection checkbox "i accept"
   Caption "FMC FRU Tools by Analog Devices, Inc"
