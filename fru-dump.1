@@ -1,0 +1,87 @@
+.TH FRU_DUMP 1
+.SH NAME
+fru_dump \- print and manipulate FMC FRU file information
+.SH SYNOPSIS
+.B fru_dump
+[\fB\-bcp\fR]
+[\fB\-o\fR \fBOUTPUT_FILE\fR]
+[\fB\-s \fBSERIAL_NUMBER\fR]
+[\fB\-d \fBDATE\fR]
+[\fB\-i\fR]
+.IR file ...
+.SH DESCRIPTION
+.B fru_dump
+The FMC specification includes a methodology where FMC mezzanine modules must
+provide hardware definition information that can be read by an external controller
+on the FMC Carrier platform (most of the time the FPGA on the carrier). This
+hardware definition is defined by FRU (Field Replaceable Unit) Information
+storage recorders, as defined in the Intel Platform Management FRU Information
+Storage Definition V1.1
+
+This utility allows you to dump and changes information for the FMC mezzanine modules FRU files.
+.SH OPTIONS
+.SS "Generic Program Information"
+.IX Subsection "Generic Program Information"
+.TP
+.B \-? \-h
+Print a useage message, summarizing these command line options, and then exit.
+.TP
+.BR \-i " FRU_FILE_IN"
+This is the FMC mezzanine modules FRU file to manipulate or dump
+.TP
+.BR \-o " FRU_FILE_OUT"
+If manipulating a field in the file, place the output to this file.
+Stdout ("\-") can be provided as the filename.
+
+If -o is not specified, the default is not to write any file (and the changes
+are made in memory only).
+.SS "Options Controlling the Dump Output"
+.IX Subsection "Options Controlling the Dump Output"
+.TP
+.BR \-b
+Display the Board Info Area. This includes
+Board Manufacturer(optional),
+Board Product Name(optional),
+Board Serial Number(optional),
+Board Part Number(optional),
+and the Date of Manufacture(non-optional).
+This can also include optional/additional custom manufacture specific info fields.
+Analog Devices uses these to denote the revision of the PCB.
+.TP
+.BR \-c
+Display the FMC specific connector Info. This will detail how many (number) and
+of what type (parallel or high speed transciever) pins are required on the mezzanine.
+.TP
+.BR \-p
+Display the Power info. This will detail the power requirements (currents) of the board,
+as well as the voltage I/O requirements in order that the FMC Carrier platform doesn't turn on something
+that may damange the mezzanine module.
+dump power supply info
+.TP
+.BR \-2
+Display any I2C devices which might be on the FMC mezzanine module, and it's address
+.TP
+.BR \-v
+Be a little more verbose, and check a few more things
+(like making sure ASCII strings, contain ASCII printable characters).
+.SS "Options to Manipulate  FMC mezzanine modules FRU file contents"
+.IX Subsection "Options to Manipulate  FMC mezzanine modules FRU file contents"
+.TP
+-d <option>
+change the date (Number of minutes from 0:00 hrs 01Jan1996)
+A value for this option must be provided; possible values are:
+.RS 4
+.IP "\fB<number>\fR" 4
+.IX Item "number"
+\&Number of minutes from 0:00 hrs 01Jan1996, Coordinated Universal Time (UTC).
+.IP "\fB<date>\fR" 4
+.IX Item "<date>"
+Date in RFC 3339 format: 2012-12-21T15:12:30-05:00. It's easy to do with the Unix date command.
+`date --rfc-3339=seconds | sed 's: :T:'`
+.IP "\fBnow\fR" 4
+.IX Item "now"
+set the date to the current time (corrected for Coordinated Universal Time).
+.RE
+.TP
+.BR \-s " <str>"
+Set the serial number to the given string
