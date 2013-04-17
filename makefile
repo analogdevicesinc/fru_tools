@@ -1,4 +1,5 @@
 BUILD_NUMBER_FILE = .version
+DESTDIR=/usr/local
 
 VERSION = 0
 PATCHLEVEL = 8
@@ -32,6 +33,10 @@ endif
 else
 	echo "Couldn't find mingw32 toolchain"
 endif
+
+install:
+	install -d $(DESTDIR)/bin
+	install ./fru-dump $(DESTDIR)/bin/
 
 clean:
 	rm -f fru-dump fru-dump.exe fru-tools-*_installer.exe *.o
