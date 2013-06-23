@@ -81,4 +81,5 @@ extern void printf_warn (const char *, ...);
 extern void printf_info (const char *, ...);
 extern struct FRU_DATA * parse_FRU (unsigned char *);
 extern unsigned char * build_FRU_blob (struct FRU_DATA *, size_t *, int);
+extern time_t min2date(unsigned int mins);
 extern void * x_calloc (size_t, size_t);

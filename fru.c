@@ -2,16 +2,16 @@
  * fru.c
  * Copyright (C) 2012 Analog Devices
  * Author : Robin Getz <robin.getz@analog.com>
- * 
+ *
  * fru-dump is free software: you can redistribute it and/or modify it
- * under the terms of the GNU General Public License, (v2 only) as 
+ * under the terms of the GNU General Public License, (v2 only) as
  * published by the Free Software Foundation.
- * 
+ *
  * fru-dump is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along
  * with this program.  If not, see http://www.gnu.org/licenses/gpl-2.0.html
  */
@@ -30,14 +30,14 @@
 
 #include "fru.h"
 
-/* 
+/*
  * This code is based from:
  * Platform Management FRU Information
  * Storage Definition
  * Document Revision 1.1, September 27, 1999
  * Available at zero cost at:
  * http://download.intel.com/design/servers/ipmi/FRU1011.pdf
- * 
+ *
  * ANSI/VITA 57.1
  * FPGA Mezzanine Card (FMC) Standard
  * Approved July 2008 (Revised February 2010)
@@ -58,7 +58,7 @@
  * of the header) plus the checksum byte equals zero.
  * Platform Management FRU Information Storage Definition : section 16.2.[56]
  */
-unsigned char calc_zero_checksum (unsigned char *data, unsigned int len) 
+unsigned char calc_zero_checksum (unsigned char *data, unsigned int len)
 {
 	int i;
 	unsigned char tmp = 0;
@@ -69,18 +69,44 @@ unsigned char calc_zero_checksum (unsigned char *data, unsigned int len)
 }
 
 /*
+ * FRU Board Area Mfg. Date / Time is the
+ * number of _minutes_ from 0:00 hrs 01Jan1996
+ * Max is 0xFFFFFF (3 bytes worth) or 
+ * 16777215 minutes; or 
+ *   279620 hours, 15 minutes; or
+ *   11650 days, 20 hours, 15 minutes; or
+ *   31 years, 328 days, 7 hours, 56 minutes (assuming 525949 minutes in a year); or
+ *   up to : Wed Nov 24 07:56 2027
+ * See:
+ *   section 11, Platform Management FRU Information Storage Definition
+ */
+time_t min2date(unsigned int mins)
+{
+	struct tm tm;
+	time_t tmp;
+
+	/* Set up 01-Jan-1996 , and add the number of minutes to it */
+	memset(&tm, 0, sizeof(struct tm));
+	tm.tm_year = 96;
+	tm.tm_mday = 1;
+	tm.tm_min += mins;
+	tmp = mktime(&tm);
+	return tmp;
+}
+
+/*
  * Used for debugging
  */
 void dump_str(unsigned char * p, unsigned int size, unsigned int space)
 {
 	size_t i, j = 0, k, m, shift;
 	unsigned char *t;
-	
+
 	t = p;
 	k = 8 - space;
- 	for (i = 0; i < size; i++) {
+	for (i = 0; i < size; i++) {
 		m = 0;
-		printf("%02i: %02x : ", i, *t);
+		printf("%02zi: %02x : ", i, *t);
 		for (shift = 0x80; shift > 0; shift >>= 1) {
 			printf("%s", ((*t & shift) == shift) ? "1" : "0");
 			j++, m++;
@@ -96,7 +122,7 @@ void dump_str(unsigned char * p, unsigned int size, unsigned int space)
 			printf(" (%c) %02x", *t, *t - 0x20);
 		++t;
 		printf("\n");
-	} 
+	}
 }
 
 /*
@@ -108,10 +134,10 @@ unsigned int ascii2six(unsigned char *buf, size_t size, unsigned char **dest)
 	size_t i = 0, j;
 	unsigned int k, m = 0;
 	unsigned char *p;
-	
+
 	if (!buf || !size)
 		return 0;
-	
+
 	p = buf;
 	/*
 	 * 6-bit requires uppercase chars, between 0 and 0x3f
@@ -124,11 +150,11 @@ unsigned int ascii2six(unsigned char *buf, size_t size, unsigned char **dest)
 		++p, i++;
 	}
 	/* dump_str(buf, size, 4); */
-	
+
 	/* the length of dest, should be 3/4 of size, we just leave it, so it's zero padded at the end */
 	*dest = x_calloc(1, size);
 	p = *dest;
-	
+
 	for (i = 0; i <= size ; i+= 4) {
 		k = buf[i];
 		m++;
@@ -153,7 +179,7 @@ unsigned int ascii2six(unsigned char *buf, size_t size, unsigned char **dest)
 	}
 
 	/* dump_str(*dest, m, 6); */
-	
+
 	return  m;
 }
 
@@ -169,7 +195,7 @@ unsigned char * six2ascii(unsigned char *buf, size_t size)
 	/* the length of dest, should be 4/3 of size + 1 for null termination char*/
 	dest = x_calloc(1, ((size * 4) / 3) + 2);
 	p = dest;
-	
+
 	for (i = 0; i <= size; i += 3) {
 		*dest = (buf[i] & 0x3F) + 0x20;
 		/* printf("%i: 0x%x (%c)\n", i, *dest, *dest); */
@@ -191,7 +217,7 @@ unsigned char * six2ascii(unsigned char *buf, size_t size)
 		}
 	}
 	*dest = 0;
-	
+
 	/* Drop trailing spaces */
 	dest--;
 	while (*dest == ' ' && size) {
@@ -203,8 +229,8 @@ unsigned char * six2ascii(unsigned char *buf, size_t size)
 	return p;
 }
 
-/* 
- * Extract strings from fields 
+/*
+ * Extract strings from fields
  * Section 13 TYPE/LENGTH BYTE FORMAT
  * Platform Management FRU Information Storage Definition
  */
@@ -278,32 +304,37 @@ struct BOARD_INFO * parse_board_area(unsigned char *data)
 	unsigned int len, i, j;
 
 	fru = x_calloc(1, sizeof(struct BOARD_INFO));
-	
+
 	if (data[0] != 0x01) {
 		printf_err("Board Area Format Version mismatch: 0x%02x should be 0x01\n", data [0]);
+		goto err;
 	}
-	
+
 	len = (data[1] * 8) - 1;
 	if (calc_zero_checksum(data, len)) {
 		printf_err("Board Area Checksum failed");
+		goto err;
 	}
-		
+
 	if (data[2] != 0 && data[2] != 25) {
 		printf_err("Board Area is non-English - sorry: Lang code = %i\n", data[2]);
+		goto err;
 	}
 
 	len--;
 	while ((data[len] == 0x00) && (len != 0))
 		len--;
-	if (len == 0 || data[len] != 0xC1)
+	if (len == 0 || data[len] != 0xC1) {
 		printf_err("BOARD INFO not terminated properly, walking backwards len: "
-			       "%i:0x%02x should be 0xC1\n", len, data[len]);
-	
+				"%i:0x%02x should be 0xC1\n", len, data[len]);
+		goto err;
+	}
+
 	fru->mfg_date = data[3] | (data[4] << 8) | (data[5] << 16);
 
 	p = &data[6];
 	len -= 6;
-	
+
 	i = parse_string(p, &fru->manufacturer, "Manufacture");
 	p += i, len -= i;
 
@@ -313,7 +344,7 @@ struct BOARD_INFO * parse_board_area(unsigned char *data)
 	i = parse_string(p, &fru->serial_number, "Serial Number");
 	p += i, len -= i;
 
-	i = parse_string(p, &fru->part_number, "Part Number");	
+	i = parse_string(p, &fru->part_number, "Part Number");
 	p += i, len -= i;
 
 	i = parse_string(p, &fru->FRU_file_ID, "FRU File ID");
@@ -325,18 +356,25 @@ struct BOARD_INFO * parse_board_area(unsigned char *data)
 		p += i, len -= i, j++;
 	}
 
-	if (*p != 0xC1)
+	if (*p != 0xC1) {
 		printf_err("BOARD INFO not terminated properly, "
-			       "offset %02i(0x%02x) : %02i(0x%02x) should be 0xC1\n", p - data, p - data, *p, *p);
-	
+				"offset %02i(0x%02x) : %02i(0x%02x) should be 0xC1\n",
+				p - data, p - data, *p, *p);
+		goto err;
+	}
+
 	return fru;
+
+err:
+	free(fru);
+	return NULL;
 }
 
 /*
  * Each record in this area begins with a pre-defined header as specified in the
  * section 16 in the Platform Management FRU Information Storage Definition.
- * This header contains a ‘Type’ field that identifies what information is 
- * contained in the record.  * There are some FMC specific headers, defined 
+ * This header contains a ‘Type’ field that identifies what information is
+ * contained in the record.  * There are some FMC specific headers, defined
  * in section 5.5.1 of the FMC specification "IPMI Support". These FMC specific
  * sections have a 1 byte sub-type, and a 3 byte Unique Organization Identifier
  */
@@ -347,7 +385,7 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
 	struct MULTIRECORD_INFO *multi;
 
 	multi = x_calloc(1, sizeof(struct MULTIRECORD_INFO));
-	
+
 	p = data;
 
 	do {
@@ -355,32 +393,36 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
 			p += 5 + p[2];
 		if (p[0] >= 0x06 && p[0] <= 0xBF) {
 			printf_err("MultiRecord Area %i: Invalid Record Header\n", i);
+			return NULL;
 		}
 		if (calc_zero_checksum(p, 4)) {
 			printf_err("MultiRecord Area %i (Record Type 0x%x): "
-				       "Header Checksum failed\n", i, p[0]);
-		}
-		if ((calc_zero_checksum(p+5, p[2] - 1) + p[3]) & 0xFF) {
-			printf_err("MultiRecord Area %i (Record Type 0x%x): "
-					"Record Checksum failed\n", i, p[0]);
+					"Header Checksum failed\n", i, p[0]);
+			return NULL;
 		}
 
-		/* 
+		if (!p[2] || ((calc_zero_checksum(p+5, p[2] - 1) + p[3]) & 0xFF)) {
+			printf_err("MultiRecord Area %i (Record Type 0x%x): "
+					"Record Checksum failed\n", i, p[0]);
+			return NULL;
+		}
+
+		/*
 		 * Record Type ID
 		 */
 		switch(p[0]) {
 			case MULTIRECORD_DC_OUTPUT:
-			case MULTIRECORD_DC_INPUT: 
+			case MULTIRECORD_DC_INPUT:
 				tmp = p[5] & 0xF;
 				if ((tmp) >= NUM_SUPPLIES)
 					printf_err("Too many Supplies defined in Multirecords\n");
-				
+
 				multi->supplies[tmp] = x_calloc(1, p[2] + 6);
 				memcpy (multi->supplies[tmp], p, p[2] + 6);
 				multi->supplies[tmp][1] = multi->supplies[tmp][1] & 0x7F;
 				break;
 			case MULTIRECORD_FMC:
-				/* 
+				/*
 				 * Use VITA's OUI: 0x0012a2 is specified in the FMC spec - Rule 5.77
 				 */
 				if ((p[5] | p[6] << 8 | p[7] << 16) != VITA_OUI) {
@@ -388,7 +430,7 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
 						"should be 0x%06x\n", p[5] | p[6] << 8 | p[7] << 16, VITA_OUI);
 				}
 				/* type field is located: Header + Manufacturer ID = 5 + 3 */
-				type = p[8] >> 4;		
+				type = p[8] >> 4;
 
 				switch (type) {
 					case MULTIRECORD_CONNECTOR:
@@ -401,13 +443,13 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
 					case MULTIRECORD_I2C:
 						if (p[2] <= 5) {
 							printf_warn("I2C MultiRecord is too short (len:%i)\n"
-							    "	(at least 4 is needed for OUI and subtype)\n",
-							    p[2]);
+								"	(at least 4 is needed for OUI and subtype)\n",
+								p[2]);
 						} else {
 							/* see table 9 in FMC spec */
 							unsigned char *foo2;
 							foo2 = six2ascii(&p[9], p[2] - 5);
-						
+
 							multi->i2c_devices = x_calloc(1, strlen((char *)foo2));
 							strcpy ((char *)multi->i2c_devices, (char *)foo2);
 							free(foo2);
@@ -419,7 +461,7 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
 						printf_err("Unknown multirecord type : %i\n", type);
 						break;
 				}
-				
+
 				if (type == 1) {
 
 				}
@@ -427,10 +469,10 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
 			default:
 				printf_err("Unknown MultiRecord Area\n");
 		}
-		
+
 		i++;
 	} while (!(p[1] & 0x80));
-	
+
 	return multi;
 }
 
@@ -444,43 +486,62 @@ struct FRU_DATA * parse_FRU (unsigned char *data)
 
 	fru = x_calloc (1, sizeof(struct FRU_DATA));
 
-	/* Check FRU version */	
-	if (data[0] != 0x01)
+	/* Check FRU version */
+	if (data[0] != 0x01) {
 		printf_err("FRU Version number mismatch 0x%02x should be 0x01\n", data[0]);
+		goto err;
+	}
 
 	/* Check Padding */
-	if (data[6] != 0x00)
+	if (data[6] != 0x00) {
 		printf_err("FRU byte 6 should be PAD, and be zero -- but it's not\n");
+		goto err;
+	}
 
 	/* Check header checksum */
-	if (calc_zero_checksum(data, 7))
+	if (calc_zero_checksum(data, 7)) {
 		printf_err("Common Header Checksum failed\n");
+		goto err;
+	}
 
 	/* Parse Internal Use Area */
-	if (data[1])
+	if (data[1]) {
 		printf_err("Internal Use Area not yet implemented - sorry\n");
+		goto err;
+	}
 
 	/* Parse Chassis Info Area */
-	if (data[2])
+	if (data[2]) {
 		printf_err("Chassis Info Area not yet implmented - sorry\n");
+		goto err;
+	}
 
 	/* Parse Board Area */
-	if (data[3]) 
+	if (data[3]) {
 		fru->Board_Area = parse_board_area(&data[data[3] * 8]);
+		if (!fru->Board_Area)
+			goto err;
+	}
 
 	/* Parse Chassis Info Area */
-	if (data[4])
+	if (data[4]) {
 		printf_err("Chassis Info Area parsing not yet implemented - sorry\n");
+		goto err;
+	}
 
 	/* Parse MultiRecord Area */
 	if (data[5])
 		fru->MultiRecord_Area = parse_multiboard_area(&data[data[5] * 8]);
 
 	return fru;
-	
+
+err:
+	free(fru);
+	return NULL;
+
 }
 
-/* 
+/*
  * take string, and put in into the buffer
  * return the number of bytes copied
  */
@@ -501,7 +562,7 @@ unsigned int insert_str(unsigned char *buf, char * str)
 		/* dump_str(six, tmp, 6); */
 		if (tmp > 0x3F)
 			printf_err("String too long to fit\n");
-		
+
 		buf[0] = tmp | (FRU_STRING_SIXBIT << 6);
 		memcpy(&buf[1], six, tmp);
 	}
@@ -520,7 +581,7 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, int packed
 
 	buf = x_calloc(1, 1024);
 	len = 256;
-	
+
 	buf[0] = 0x01;
 	i = 8;
 	if (fru->Internal_Area)
@@ -538,14 +599,14 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, int packed
 		buf[i+3] = (fru->Board_Area->mfg_date) & 0xFF;
 		buf[i+4] = (fru->Board_Area->mfg_date >> 8) & 0xFF;
 		buf[i+5] = (fru->Board_Area->mfg_date >> 16) & 0xFF;
-		
+
 		i += 6;
 		i += insert_str(&buf[i], fru->Board_Area->manufacturer);
 		i += insert_str(&buf[i], fru->Board_Area->product_name);
 		i += insert_str(&buf[i], fru->Board_Area->serial_number);
 		i += insert_str(&buf[i], fru->Board_Area->part_number);
 		i += insert_str(&buf[i], fru->Board_Area->FRU_file_ID);
-		for (j = 0; j < CUSTOM_FIELDS; j++) {	
+		for (j = 0; j < CUSTOM_FIELDS; j++) {
 			if (fru->Board_Area->custom[j])
 				i += insert_str(&buf[i], fru->Board_Area->custom[j]);
 		}
@@ -581,7 +642,7 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, int packed
 			unsigned int len, oui = VITA_OUI;
 			unsigned char *six;
 			len = ascii2six(p, strlen((char *)p), &six);
-			
+
 			/* Type ID, Record Format version, Length, checksum, checksum */
 			sprintf((char *)&buf[i], "%c%c%c%c%c", MULTIRECORD_FMC, 0x02, len + 4, 0, 0);
 			/* Store OUI */
@@ -599,7 +660,7 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, int packed
 			buf[i+3] = 0x100 - calc_zero_checksum(&buf[i+5], len + 3);
 			/* Header Checksum */
 			buf[i+4] = 0x100 - calc_zero_checksum(&buf[i], 4);
-			
+
 			last = i + 1;
 			i += len + 9;
 		}

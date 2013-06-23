@@ -2,17 +2,17 @@
  * operating_system.c
  * Copyright (C) 2012 Analog Devices
  * Author : Robin Getz <robin.getz@analog.com>
- * 
+ *
  * fru-dump is free software: you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
  * Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * fru-dump is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -65,10 +65,10 @@ void printf_err (const char * fmt, ...)
 void printf_warn (const char * fmt, ...)
 {
 	va_list ap;
-	
+
 	if (quiet || !verbose)
 		return;
-	
+
 	va_start(ap,fmt);
 	vprintf(fmt,ap);
 	va_end(ap);
@@ -77,10 +77,10 @@ void printf_warn (const char * fmt, ...)
 void printf_info (const char * fmt, ...)
 {
 	va_list ap;
-	
+
 	if (quiet)
 		return;
-	
+
 	va_start(ap,fmt);
 	vprintf(fmt,ap);
 	va_end(ap);
@@ -95,11 +95,11 @@ unsigned char * read_file(char *file_name)
 	unsigned char *p;
 	size_t tmp;
 	int i = 0;
-	
+
 	fp = fopen(file_name, "rb");
 	if(fp == NULL)
 		printf_err("Cannot open file '%s'\n", file_name);
-	
+
 	p = x_calloc(1, 1024);
 	tmp = fread(p, 1024, 1, fp);
 	if (!feof(fp))
@@ -111,9 +111,9 @@ unsigned char * read_file(char *file_name)
 	 */
 	if (tmp == 0)
 		for (i = 1023; p[i] == 0; i--);
-	
+
 	printf_info("read %i bytes from %s\n", i+1, file_name);
-	
+
 	fclose(fp);
 	return p;
 }
@@ -151,30 +151,6 @@ void write_FRU(struct FRU_DATA *fru, char * file_name)
 	}
 	printf_info("wrote %i bytes to %s\n", len, file_name);
 }
-/*
- * FRU Board Area Mfg. Date / Time is the
- * number of _minutes_ from 0:00 hrs 01Jan1996
- * Max is 0xFFFFFF (3 bytes worth) or 
- * 16777215 minutes; or 
- * 279620 hours, 15 minutes
- * 11650 days, 20 hours, 15 minutes
- * 31 years, 328 days, 7 hours, 56 minutes  (assuming 525949 minutes in a year)
- * Wed Nov 24 07:56 2027
- * section 11, Platform Management FRU Information Storage Definition
- */
-time_t min2date(unsigned int mins)
-{
-	struct tm tm;
-	time_t tmp;
-	
-	/* Set up 01-Jan-1996 , and add the number of minutes to it */
-	memset(&tm, 0, sizeof(struct tm));
-	tm.tm_year = 96;
-	tm.tm_mday = 1;
-	tm.tm_min += mins;
-	tmp = mktime(&tm);
-	return tmp;
-}
 
 void dump_BOARD(struct BOARD_INFO *fru)
 {
@@ -191,17 +167,20 @@ void dump_BOARD(struct BOARD_INFO *fru)
 	printf("Part Number  : %s\n", &fru->part_number[1]);
 	if (fru->FRU_file_ID[0] & 0x3F)
 		printf("FRU File ID  : %s\n", &fru->FRU_file_ID[1]);
-	
+
 	if (!strcasecmp(&fru->manufacturer[1], "Analog Devices")) {
 		for (i = 0; i < CUSTOM_FIELDS; i++) {
 			if (fru->custom[i] && fru->custom[i][0] & 0x3F) {
 				switch (fru->custom[i][1]) {
 					case 0:
-						printf("Board Rev    :");
+						printf("PCB Rev      :");
 						break;
 					case 1:
 						printf("PCB ID       :");
-					break;
+						break;
+					case 2:
+						printf("BOM Rev      :");
+						break;
 					default:
 						printf("Unknown      :");
 						break;
@@ -230,7 +209,7 @@ void dump_BOARD(struct BOARD_INFO *fru)
  * Table 8 from the VITA/ANSI 57.1 Spec
  */
 const char * DC_Loads[] = {
-	"P1 VADJ",			/* Load   :  0 */         
+	"P1 VADJ",			/* Load   :  0 */
 	"P1 3P3V",			/* Load   :  1 */
 	"P1 12P0V",			/* Load   :  2 */
 	"P1 VIO_B_M2C",			/* Output :  3 */
@@ -267,7 +246,7 @@ void dump_MULTIRECORD (struct MULTIRECORD_INFO *fru)
 					printf("  Ripple and Noise pk-pk:     %d (mV)\n",  n[ 7] | (n[ 8] << 8));
 					printf("  Minimum current draw:       %d (mA)\n",  n[ 9] | (n[10] << 8));
 					printf("  Maximum current draw:       %d (mA)\n",  n[11] | (n[12] << 8));
-				} else 
+				} else
 					printf("  All Zeros\n");
 				break;
 			case 2:
@@ -282,7 +261,7 @@ void dump_MULTIRECORD (struct MULTIRECORD_INFO *fru)
 				break;
 		}
 	}
-	
+
 }
 
 void dump_i2c (struct MULTIRECORD_INFO *fru)
@@ -309,7 +288,7 @@ void dump_i2c (struct MULTIRECORD_INFO *fru)
 		printf("\t");
 		while ((*n -0x20) <= 0x0F) {
 			printf("0x%02x|0x%02x (0b", (*n - 0x20) << 4, (*n - 0x20) << 3);
-			for (shift = 0x08; shift > 0; shift >>= 1) 
+			for (shift = 0x08; shift > 0; shift >>= 1)
 				printf("%s", (((*n - 0x20) & shift) == shift) ? "1" : "0");
 			printf("nnn[RW]);  ");
 			n++;
@@ -327,10 +306,10 @@ void dump_FMConnector (struct MULTIRECORD_INFO *fru)
 		printf("No Connector information\n");
 		return;
 	}
-	
+
 	p = fru->connector;
 	n = p + 5;
-	
+
 	n += 3;
 	switch (n[1]>>6) {
 		case 0:
@@ -369,7 +348,7 @@ void dump_FMConnector (struct MULTIRECORD_INFO *fru)
 			printf("P2 not legal size\n");
 			break;
 	}
-	printf("P1 Bank A Signals needed %d\n", n[2]); 
+	printf("P1 Bank A Signals needed %d\n", n[2]);
 	printf("P1 Bank B Signals needed %d\n", n[3]);
 	printf("P1 GBT Transceivers needed %d\n", n[6] >> 4);
 	if (((n[1] >> 2) & 0x3) != 3) {
@@ -396,6 +375,7 @@ void usage (void)
 		"    -b\tdump board info\n"
 		"    -c\tdump connector info\n"
 		"    -p\tdump power supply info\n"
+		"    -2\tdump I2C info\n"
 		"    -v\tverbose (show warnings)\n");
 	printf("  set info (modifies output file)\n"
 		"    -d <num>\tset date (Number of minutes from 0:00 hrs 01Jan1996)\n"
@@ -417,7 +397,7 @@ int main(int argc, char **argv)
 	unsigned char *raw_input_data = NULL;
 	struct FRU_DATA *fru = NULL;
 	int dump = 0;
-	
+
 	opterr = 0;
 	while ((c = getopt (argc, argv, "2bcpv?d:h:s:i:o:")) != -1)
 	switch (c) {
@@ -433,7 +413,7 @@ int main(int argc, char **argv)
 		case 'd':
 		{
 			struct tm time_tm, time_1996;
-			
+
 			memset(&time_tm, 0, sizeof(struct tm));
 			memset(&time_1996, 0, sizeof(struct tm));
 
@@ -448,7 +428,7 @@ int main(int argc, char **argv)
 			if (p || time_tm.tm_year) {
 				time_1996.tm_year = 96;
 				time_1996.tm_mday = 1;
-				
+
 				/* this returns seconds, we need minutes */
 				date = (int)difftime(mktime(&time_tm), mktime(&time_1996)) / 60;
 			} else {
@@ -488,12 +468,12 @@ int main(int argc, char **argv)
 
 	if (!input_file &&  (optind == (argc -1)))
 		input_file = argv[optind];
-	
-	if (input_file) 
+
+	if (input_file)
 		raw_input_data = read_file(input_file);
 	else
 		printf_err("no input file specified\n");
-	
+
 	if (raw_input_data) {
 		fru = parse_FRU(raw_input_data);
 	}
@@ -505,14 +485,14 @@ int main(int argc, char **argv)
 		memcpy(&fru->Board_Area->serial_number[1], serial, strlen(serial));
 		printf_info("changing serial number to %s\n", serial);
 	}
-	
+
 	if (date) {
 		time_t tmp;
 		tmp = min2date(date);
 		fru->Board_Area->mfg_date = date;
 		printf_info("changing date to %s", ctime(&tmp));
 	}
-	
+
 	if (fru && dump & DUMP_BOARD)
 		dump_BOARD(fru->Board_Area);
 
@@ -521,12 +501,12 @@ int main(int argc, char **argv)
 
 	if (fru && dump & DUMP_CONNECTOR)
 		dump_FMConnector(fru->MultiRecord_Area);
-	
+
 	if (fru && dump & DUMP_I2C)
 		dump_i2c(fru->MultiRecord_Area);
-	
+
 	if (output_file)
 		write_FRU(fru, output_file);
-	
+
 	exit(EXIT_SUCCESS);
 }
