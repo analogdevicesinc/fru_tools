@@ -425,7 +425,7 @@ int main(int argc, char **argv)
 				p = strptime(optarg, "%Y-%m-%dT%H:%M:%S%z", &time_tm);
 #endif
 			}
-			if (p || time_tm.tm_year) {
+			if (p && time_tm.tm_year) {
 				time_1996.tm_year = 96;
 				time_1996.tm_mday = 1;
 
