@@ -261,6 +261,7 @@ void dump_MULTIRECORD (struct MULTIRECORD_INFO *fru)
 				break;
 		}
 	}
+	free (z);
 
 }
 
@@ -476,6 +477,7 @@ int main(int argc, char **argv)
 
 	if (raw_input_data) {
 		fru = parse_FRU(raw_input_data);
+		free(raw_input_data);
 	}
 
 	if (serial) {
@@ -507,6 +509,8 @@ int main(int argc, char **argv)
 
 	if (output_file)
 		write_FRU(fru, output_file);
+
+	free_FRU(fru);
 
 	exit(EXIT_SUCCESS);
 }
