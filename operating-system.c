@@ -15,6 +15,10 @@
  *
  * You should have received a copy of the GNU General Public License along
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * fru-dump includes the files fru.c and fru.h, which are released under a
+ * BSD-like license. These files can be used seperately from fru-dump,
+ * and include in non-GPL software.
  */
 
 #include <ctype.h>
