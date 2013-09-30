@@ -185,6 +185,9 @@ void dump_BOARD(struct BOARD_INFO *fru)
 					case 2:
 						printf("BOM Rev      :");
 						break;
+					case 3:
+						printf("Uses LVDS    :");
+						break;
 					default:
 						printf("Unknown      :");
 						break;
