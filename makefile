@@ -1,5 +1,6 @@
 BUILD_NUMBER_FILE = .version
 DESTDIR=/usr/local
+PLIB=$(PREFIX)/lib/fmc-tools
 
 VERSION = 0
 PATCHLEVEL = 8
@@ -37,6 +38,7 @@ endif
 install:
 	install -d $(DESTDIR)/bin
 	install ./fru-dump $(DESTDIR)/bin/
+	install ./masterfiles/* $(PLIB)
 
 clean:
 	rm -f fru-dump fru-dump.exe fru-tools-*_installer.exe *.o
