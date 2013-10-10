@@ -38,6 +38,7 @@ endif
 install:
 	install -d $(DESTDIR)/bin
 	install ./fru-dump $(DESTDIR)/bin/
+	install -d $(PLIB)
 	install ./masterfiles/* $(PLIB)
 
 clean:
