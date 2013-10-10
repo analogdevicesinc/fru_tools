@@ -1,6 +1,6 @@
 BUILD_NUMBER_FILE = .version
 DESTDIR=/usr/local
-PLIB=$(PREFIX)/lib/fmc-tools
+PLIB=$(DESTDIR)/lib/fmc-tools
 
 VERSION = 0
 PATCHLEVEL = 8
