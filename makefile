@@ -4,11 +4,10 @@ PLIB=$(DESTDIR)/lib/fmc-tools
 
 VERSION = 0
 PATCHLEVEL = 8
-SUBLEVEL = 0
+SUBLEVEL = 1
 EXTRALEVEL = $(shell cat $(BUILD_NUMBER_FILE))
 
-#CFLAGS+= -g -O0 -Wall -ansi -pedantic
-CFLAGS+= -O2 -Wall
+CFLAGS+= -O2 -g -Wall -Wextra -ansi -pedantic
 MING_CC=i586-mingw32msvc-gcc
 MING_INSTALL = $(shell expr `which $(MING_CC) | wc -l` \>= 1)
 INSTALLER = makensis
@@ -34,6 +33,19 @@ endif
 else
 	echo "Couldn't find mingw32 toolchain"
 endif
+
+test: ALL
+	valgrind --leak-check=full ./fru-dump -h
+	valgrind --leak-check=full ./fru-dump -b -v ./masterfiles/AD-FMCOMMS2-EBZ-FRU.bin
+	valgrind --leak-check=full ./fru-dump -2 -v ./masterfiles/AD-FMCOMMS2-EBZ-FRU.bin
+	valgrind --leak-check=full ./fru-dump -c -v ./masterfiles/AD-FMCOMMS2-EBZ-FRU.bin
+	valgrind --leak-check=full ./fru-dump -p -v ./masterfiles/AD-FMCOMMS2-EBZ-FRU.bin
+	valgrind --leak-check=full ./fru-dump ./masterfiles/AD-FMCOMMS2-EBZ-FRU.bin -o ./foo2.bar
+	valgrind --leak-check=full ./fru-dump ./masterfiles/AD-FMCOMMS2-EBZ-FRU.bin -6 -o ./foo2.bar
+	valgrind --leak-check=full ./fru-dump -b -v ./foo2.bar
+	valgrind --leak-check=full ./fru-dump -2 -v ./foo2.bar
+	valgrind --leak-check=full ./fru-dump -c -v ./foo2.bar
+	valgrind --leak-check=full ./fru-dump -p -v ./foo2.bar
 
 install:
 	install -d $(DESTDIR)/bin

@@ -39,6 +39,19 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
  */
 
+#ifndef __fru_tools__
+#define __fru_tools__
+
+#include <stdbool.h>
+
+#ifndef UNUSED
+#  ifdef __GNUC__
+#    define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
+#  else
+#    define UNUSED(x) UNUSED_ ## x
+#  endif
+#endif
+
 /* 
  * These structures/data are based from:
  * Platform Management FRU Information
@@ -60,15 +73,18 @@
 #define FRU_STRING_SIXBIT  2
 #define FRU_STRING_ASCII   3
 
+#define TYPE_CODE(x)  ((x[0] >> 6) & 0x3)
+#define FIELD_LEN(x)  (x[0] & 0x3F)
+
 struct BOARD_INFO {
-	char language_code;
+	unsigned char language_code;
 	unsigned int mfg_date;
-	char *manufacturer;
-	char *product_name;
-	char *serial_number;
-	char *part_number;
-	char *FRU_file_ID;
-	char *custom[CUSTOM_FIELDS];
+	unsigned char *manufacturer;
+	unsigned char *product_name;
+	unsigned char *serial_number;
+	unsigned char *part_number;
+	unsigned char *FRU_file_ID;
+	unsigned char *custom[CUSTOM_FIELDS];
 };
 
 #define NUM_MULTI     3
@@ -103,6 +119,8 @@ extern void printf_warn (const char *, ...);
 extern void printf_info (const char *, ...);
 extern struct FRU_DATA * parse_FRU (unsigned char *);
 extern void free_FRU (struct FRU_DATA * fru);
-extern unsigned char * build_FRU_blob (struct FRU_DATA *, size_t *, int);
+extern unsigned char * build_FRU_blob (struct FRU_DATA *, size_t *, bool);
 extern time_t min2date(unsigned int mins);
 extern void * x_calloc (size_t, size_t);
+
+#endif  /* __fru_tools__ */

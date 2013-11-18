@@ -33,6 +33,7 @@
 #define __USE_XOPEN /* needed for strptime */
 #include <time.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 
 #include "fru.h"
@@ -123,22 +124,23 @@ unsigned char * read_file(char *file_name)
 }
 
 
-void write_FRU(struct FRU_DATA *fru, char * file_name)
+void write_FRU(struct FRU_DATA *fru, char * file_name, bool packed)
 {
 	size_t tmp, len;
 	unsigned char *buf = NULL;
 	FILE *fp;
 
 	/* Build as ASCII output */
-	buf = build_FRU_blob(fru, &len, 0);
+	buf = build_FRU_blob(fru, &len, packed);
 
 	/* If it's too big, try again, with 6-bit packed */
-	if (len >= 255) {
+	if (len >= 255 && !packed) {
 		free(buf);
 		buf = build_FRU_blob(fru, &len, 1);
 		if (len >= 255) {
 			free(buf);
 			printf_err("Not able to pack things into 255 char, no output\n");
+			return;
 		}
 	}
 
@@ -154,6 +156,24 @@ void write_FRU(struct FRU_DATA *fru, char * file_name)
 		fclose(fp);
 	}
 	printf_info("wrote %i bytes to %s\n", len, file_name);
+
+	free(buf);
+}
+
+static void dump_fru_field(const char * description, size_t offset, unsigned char * field)
+{
+	/* does field exist, and have length? */
+	if (field) {
+		printf("%s\t: ", description);
+		if (FIELD_LEN(field)) {
+			if (TYPE_CODE(field) == FRU_STRING_ASCII || offset) {
+				printf("%s\n", &field[offset + 1]);
+			} else {
+				printf("Non-ASCII\n");
+			}
+		} else
+			printf("Empty Field\n");
+	}
 }
 
 void dump_BOARD(struct BOARD_INFO *fru)
@@ -161,38 +181,34 @@ void dump_BOARD(struct BOARD_INFO *fru)
 	unsigned int i, j;
 	time_t tmp = min2date(fru->mfg_date);
 
-	printf("Date of Man  : %s", ctime(&tmp));
-	if (fru->manufacturer && fru->manufacturer[0] & 0x3F)
-		printf("Manufacture  : %s\n", &fru->manufacturer[1]);
-	if (fru->product_name && fru->product_name[0] & 0x3F)
-		printf("Product Name : %s\n", &fru->product_name[1]);
-	if (fru->serial_number[0] & 0x3F)
-		printf("Serial Number: %s\n", &fru->serial_number[1]);
-	printf("Part Number  : %s\n", &fru->part_number[1]);
-	if (fru->FRU_file_ID[0] & 0x3F)
-		printf("FRU File ID  : %s\n", &fru->FRU_file_ID[1]);
+	printf("Date of Man\t: %s", ctime(&tmp));
+	dump_fru_field("Manufacture", 0, fru->manufacturer);
+	dump_fru_field("Product Name", 0, fru->product_name);
+	dump_fru_field("Serial Number", 0, fru->serial_number);
+	dump_fru_field("Part Number", 0, fru->part_number);
+	dump_fru_field("FRU File ID", 0, fru->FRU_file_ID);
 
-	if (!strcasecmp(&fru->manufacturer[1], "Analog Devices")) {
+	if (!strncasecmp((const char *)&fru->manufacturer[1], "Analog Devices", strlen("Analog Devices"))) {
 		for (i = 0; i < CUSTOM_FIELDS; i++) {
+			/* These are ADI custom fields */
 			if (fru->custom[i] && fru->custom[i][0] & 0x3F) {
 				switch (fru->custom[i][1]) {
 					case 0:
-						printf("PCB Rev      :");
+						dump_fru_field("PCB Rev ", 1, fru->custom[i]);
 						break;
 					case 1:
-						printf("PCB ID       :");
+						dump_fru_field("PCB ID  ", 1, fru->custom[i]);
 						break;
 					case 2:
-						printf("BOM Rev      :");
+						dump_fru_field("BOM Rev ", 1, fru->custom[i]);
 						break;
 					case 3:
-						printf("Uses LVDS    :");
+						dump_fru_field("Uses LVDS", 1, fru->custom[i]);
 						break;
 					default:
-						printf("Unknown      :");
+						dump_fru_field("Unknown ", 1, fru->custom[i]);
 						break;
 				}
-				printf(" %s\n", &fru->custom[i][2]);
 			}
 		}
 	} else {
@@ -392,6 +408,7 @@ void usage (void)
 #endif
 		"    -d now\tset the date to the current time\n"
 		"    -s <str>\tset serial number (string)\n"
+		"    -6\t\tforce output to be in 6-bit ASCII\n"
 	);
 }
 
@@ -405,9 +422,10 @@ int main(int argc, char **argv)
 	unsigned char *raw_input_data = NULL;
 	struct FRU_DATA *fru = NULL;
 	int dump = 0;
+	bool force_packing = false;
 
 	opterr = 0;
-	while ((c = getopt (argc, argv, "2bcpv?d:h:s:i:o:")) != -1)
+	while ((c = getopt (argc, argv, "26bcpv?d:h:s:i:o:")) != -1)
 	switch (c) {
 		case 'b':
 			dump |= DUMP_BOARD;
@@ -417,6 +435,9 @@ int main(int argc, char **argv)
 			break;
 		case '2':
 			dump |= DUMP_I2C;
+			break;
+		case '6':
+			force_packing = true;
 			break;
 		case 'd':
 		{
@@ -515,7 +536,7 @@ int main(int argc, char **argv)
 		dump_i2c(fru->MultiRecord_Area);
 
 	if (output_file)
-		write_FRU(fru, output_file);
+		write_FRU(fru, output_file, force_packing);
 
 	free_FRU(fru);
 
