@@ -511,7 +511,7 @@ int main(int argc, char **argv)
 	if (serial) {
 		free(fru->Board_Area->serial_number);
 		fru->Board_Area->serial_number = x_calloc(1, strlen(serial)+3);
-		fru->Board_Area->serial_number[0] = strlen(serial);
+		fru->Board_Area->serial_number[0] = strlen(serial) | (FRU_STRING_ASCII << 6);
 		memcpy(&fru->Board_Area->serial_number[1], serial, strlen(serial));
 		printf_info("changing serial number to %s\n", serial);
 	}
