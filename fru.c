@@ -759,12 +759,22 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 			if (!p)
 				continue;
 			memcpy(&buf[i], p, p[2]+ 5);
+			/* Record Checksum */
+			buf[i+3] = 0x100 - calc_zero_checksum(&buf[i+5], buf[i+2] - 1);
+			/* Header Checksum */
+			buf[i+4] = 0;
+			buf[i+4] = 0x100 - calc_zero_checksum(&buf[i], 4);
 			last = i + 1;
 			i += p[2] + 5;
 		}
 		p = fru->MultiRecord_Area->connector;
 		if (p) {
 			memcpy(&buf[i], p, p[2]+ 5);
+			/* Record Checksum */
+			buf[i+3] = 0x100 - calc_zero_checksum(&buf[i+5], buf[i+2] - 1);
+			/* Header Checksum */
+			buf[i+4] = 0;
+			buf[i+4] = 0x100 - calc_zero_checksum(&buf[i], 4);
 			last = i + 1;
 			i += p[2] + 5;
 		}
