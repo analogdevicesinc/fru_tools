@@ -449,6 +449,10 @@ int main(int argc, char **argv)
 			if (!strcmp(optarg, "now")) {
 				time_t tmp = time(NULL);
 				time_tm = *gmtime(&tmp);
+				time_1996.tm_year = 96;
+				time_1996.tm_mday = 1;
+				date = (int)difftime(mktime(&time_tm), mktime(&time_1996)) / 60;
+				break;
 			} else {
 #ifndef __MINGW32__
 				p = strptime(optarg, "%Y-%m-%dT%H:%M:%S%z", &time_tm);
