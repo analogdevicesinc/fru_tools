@@ -205,6 +205,9 @@ void dump_BOARD(struct BOARD_INFO *fru)
 					case 3:
 						dump_fru_field("Uses LVDS", 1, fru->custom[i]);
 						break;
+					case 4:
+						dump_fru_field("Tuning  ", 1, fru->custom[i]);
+						break;
 					default:
 						dump_fru_field("Unknown ", 1, fru->custom[i]);
 						break;
@@ -408,6 +411,7 @@ void usage (void)
 #endif
 		"    -d now\tset the date to the current time\n"
 		"    -s <str>\tset serial number (string)\n"
+		"    -t <str>\tset tuning parameters\n"
 		"    -6\t\tforce output to be in 6-bit ASCII\n"
 	);
 }
@@ -416,6 +420,7 @@ int main(int argc, char **argv)
 {
 	char *input_file = NULL, *p = NULL;
 	char *serial = NULL;
+	char *tuning = NULL;
 	char *output_file = NULL;
 	unsigned int date = 0;
 	int c;
@@ -425,7 +430,7 @@ int main(int argc, char **argv)
 	bool force_packing = false;
 
 	opterr = 0;
-	while ((c = getopt (argc, argv, "26bcpv?d:h:s:i:o:")) != -1)
+	while ((c = getopt (argc, argv, "26bcpv?d:h:s:t:i:o:")) != -1)
 	switch (c) {
 		case 'b':
 			dump |= DUMP_BOARD;
@@ -485,6 +490,9 @@ int main(int argc, char **argv)
 		case 's':
 			serial = optarg;
 			break;
+		case 't':
+			tuning = optarg;
+			break;
 		case 'i':
 			input_file = optarg;
 			break;
@@ -518,6 +526,14 @@ int main(int argc, char **argv)
 		fru->Board_Area->serial_number[0] = strlen(serial) | (FRU_STRING_ASCII << 6);
 		memcpy(&fru->Board_Area->serial_number[1], serial, strlen(serial));
 		printf_info("changing serial number to %s\n", serial);
+	}
+
+	if (tuning) {
+		fru->Board_Area->custom[4] = x_calloc(1, strlen(tuning)+3);
+		fru->Board_Area->custom[4][0] = strlen(tuning) | (FRU_STRING_ASCII << 6);
+		fru->Board_Area->custom[4][1] = 4;
+		memcpy(&fru->Board_Area->custom[4][2], tuning, strlen(tuning));
+		printf_info("changing tuning parameter to '%s'\n", tuning, strlen(tuning));
 	}
 
 	if (date) {
