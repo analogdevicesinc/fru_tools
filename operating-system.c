@@ -182,7 +182,7 @@ void dump_BOARD(struct BOARD_INFO *fru)
 	time_t tmp = min2date(fru->mfg_date);
 
 	printf("Date of Man\t: %s", ctime(&tmp));
-	dump_fru_field("Manufacture", 0, fru->manufacturer);
+	dump_fru_field("Manufacturer", 0, fru->manufacturer);
 	dump_fru_field("Product Name", 0, fru->product_name);
 	dump_fru_field("Serial Number", 0, fru->serial_number);
 	dump_fru_field("Part Number", 0, fru->part_number);
