@@ -1,6 +1,6 @@
 /*
  * operating_system.c
- * Copyright (C) 2012 Analog Devices
+ * Copyright (C) 2012-2015 Analog Devices
  * Author : Robin Getz <robin.getz@analog.com>
  *
  * fru-dump is free software: you can redistribute it and/or modify it
@@ -387,7 +387,7 @@ void dump_FMConnector (struct MULTIRECORD_INFO *fru)
 void usage (void)
 {
 	printf("fru_dump %s, built %s\n", VERSION, VERSION_DATE);
-	printf(" Copyright (C) 2012  Analog Devices, Inc.\n"
+	printf(" Copyright (C) 2012-2015 Analog Devices, Inc.\n"
 		" This is free software; see the source for copying conditions.\n"
 		" There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A\n"
 		" PARTICULAR PURPOSE.\n\n");

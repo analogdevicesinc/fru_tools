@@ -1,6 +1,6 @@
 /*
  * fru.h
- * Copyright (C) 2012 Analog Devices
+ * Copyright (C) 2012-2015 Analog Devices
  * Author : Robin Getz <robin.getz@analog.com>
  *
  * This file is maintained as part of:
