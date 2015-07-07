@@ -1,6 +1,6 @@
 /*
  * fru.c
- * Copyright (C) 2012 Analog Devices
+ * Copyright (C) 2012-2015 Analog Devices
  * Author : Robin Getz <robin.getz@analog.com>
  *
  * This file is maintained as part of:
@@ -412,7 +412,7 @@ struct BOARD_INFO * parse_board_area(unsigned char *data)
 	p = &data[6];
 	len -= 6;
 
-	i = parse_string(p, &fru->manufacturer, "Manufacture");
+	i = parse_string(p, &fru->manufacturer, "Manufacturer");
 	p += i, len -= i;
 
 	i = parse_string(p, &fru->product_name, "Product Name");
