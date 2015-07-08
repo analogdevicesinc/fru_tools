@@ -428,6 +428,7 @@ int main(int argc, char **argv)
 	struct FRU_DATA *fru = NULL;
 	int dump = 0;
 	bool force_packing = false;
+	bool output_required = false;
 
 	opterr = 0;
 	while ((c = getopt (argc, argv, "26bcpv?d:h:s:t:i:o:")) != -1)
@@ -447,6 +448,7 @@ int main(int argc, char **argv)
 		case 'd':
 		{
 			struct tm time_tm, time_1996;
+			output_required = true;
 
 			memset(&time_tm, 0, sizeof(struct tm));
 			memset(&time_1996, 0, sizeof(struct tm));
@@ -488,9 +490,11 @@ int main(int argc, char **argv)
 				quiet = 1;
 			break;
 		case 's':
+			output_required = true;
 			serial = optarg;
 			break;
 		case 't':
+			output_required = true;
 			tuning = optarg;
 			break;
 		case 'i':
@@ -514,6 +518,9 @@ int main(int argc, char **argv)
 		raw_input_data = read_file(input_file);
 	else
 		printf_err("no input file specified\n");
+
+	if (output_required && !output_file)
+		printf_err("no output file specified\n");
 
 	if (raw_input_data) {
 		fru = parse_FRU(raw_input_data);
