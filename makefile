@@ -7,7 +7,7 @@ PATCHLEVEL = 8
 SUBLEVEL = 1
 EXTRALEVEL = $(shell cat $(BUILD_NUMBER_FILE))
 
-CFLAGS+= -O2 -g -Wall -Wextra -ansi -pedantic
+CFLAGS+= -O2 -g -Wall -Wextra -pedantic
 MING_CC=i586-mingw32msvc-gcc
 MING_INSTALL = $(shell expr `which $(MING_CC) | wc -l` \>= 1)
 INSTALLER = makensis
