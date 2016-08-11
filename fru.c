@@ -563,6 +563,7 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
 
 	multi = x_calloc(1, sizeof(struct MULTIRECORD_INFO));
 
+        multi->picmg_cnt=0;
 	p = data;
 
 	do {
@@ -588,6 +589,39 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
 		 * Record Type ID
 		 */
 		switch(p[0]) {
+                        case MULTIRECORD_PICMG:
+				printf("PICMG Multirecords\n");
+				multi->picmg[multi->picmg_cnt] = x_calloc(1, p[2] + 5);
+				memcpy (multi->picmg[multi->picmg_cnt], p, p[2] + 5);
+                                switch(p[8]){
+                                    case 0x16:
+                                        printf("... PICMG Module Current Requirement\n");
+                                        break;
+                                    case 0x17:
+                                        printf("... PICMG Carrier Activation and Current Management\n");
+                                        break;
+                                    case 0x18:
+                                        printf("... PICMG Carrier P2P Connectivity\n");
+                                        break;
+                                    case 0x19:
+                                        printf("... PICMG AMC P2P Connectivity\n");
+                                        break;
+                                    case 0x1A:
+                                        printf("... PICMG Carrier Information Table\n");
+                                        break;
+                                    case 0x2C:
+                                        printf("... PICMG Carrier Clock P2P Connectivity\n");
+                                        break;
+                                    case 0x2D:
+                                        printf("... PICMG Clock Configuration\n");
+                                        break;
+                                    default:
+                                        printf("... Unknown $%02X\n",p[8]);
+                                        break;                                        
+                                }
+                
+                                multi->picmg_cnt++;
+                                break;
 			case MULTIRECORD_DC_OUTPUT:
 			case MULTIRECORD_DC_INPUT:
 				tmp = p[5] & 0xF;
@@ -644,7 +678,8 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
 				}
 				break;
 			default:
-				printf_err("Unknown MultiRecord Area\n");
+				printf_warn("Unknown MultiRecord Area\n");
+				break;
 		}
 
 		i++;

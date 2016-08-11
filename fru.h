@@ -104,6 +104,8 @@ struct PRODUCT_INFO {
 #define NUM_SUPPLIES 12
 
 struct MULTIRECORD_INFO {
+        int picmg_cnt;
+	unsigned char *picmg[NUM_SUPPLIES];
 	unsigned char *supplies[NUM_SUPPLIES];
 	unsigned char *connector;
 	unsigned char *i2c_devices;
@@ -118,6 +120,9 @@ struct MULTIRECORD_INFO {
 #define MULTIRECORD_FMC       0xFA
 /* VITA’s Organizationally Unique Identifier - see rule 5.77 in the FMC spec */
 #define VITA_OUI 0x0012A2
+
+
+#define MULTIRECORD_PICMG       0xC0
 
 struct FRU_DATA {
 	char *Internal_Area;
