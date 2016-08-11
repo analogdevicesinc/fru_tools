@@ -455,6 +455,99 @@ err:
 }
 
 /*
+ * Product Info Area Format
+ * Platform Management FRU Information Storage Definition: Section 12
+ */
+struct PRODUCT_INFO * parse_product_area(unsigned char *data)
+{
+    unsigned int crc=0;
+
+	struct PRODUCT_INFO *fru;
+	unsigned char *p;
+	unsigned int len, i, j;
+
+	fru = x_calloc(1, sizeof(struct PRODUCT_INFO));
+
+	if (data[0] != 0x01) {
+		printf_err("Product Area Format Version mismatch: 0x%02x should be 0x01\n", data [0]);
+		goto err;
+	}
+
+	len = (data[1] * 8) - 1;
+	if ( (crc=calc_zero_checksum(data, len)) ) {
+		printf_err("Product Area Checksum failed\n");
+		goto err;
+	}
+
+	if (data[2] != 0 && data[2] != 25) {
+		printf_err("Product Area is non-English - sorry: Lang code = %i\n", data[2]);
+		goto err;
+	}
+
+	len--;
+	while ((data[len] == 0x00) && (len != 0))
+		len--;
+	if (len == 0 || data[len] != 0xC1) {
+		printf_err("PRODUCT INFO not terminated properly, walking backwards len: "
+				"%i:0x%02x should be 0xC1\n", len, data[len]);
+		goto err;
+	}
+
+	p = &data[3];
+	len -= 3;
+
+	i = parse_string(p, &fru->manufacturer, "Manufacturer");
+	p += i, len -= i;
+
+	i = parse_string(p, &fru->product_name, "Product Name");
+	p += i, len -= i;
+
+	i = parse_string(p, &fru->part_number, "Part Number");
+	p += i, len -= i;
+
+	i = parse_string(p, &fru->product_version, "Product Version");
+	p += i, len -= i;
+        
+        i = parse_string(p, &fru->serial_number, "Serial Number");
+	p += i, len -= i;
+
+        i = parse_string(p, &fru->asset_tag, "Asset Tag");
+	p += i, len -= i;
+
+	i = parse_string(p, &fru->FRU_file_ID, "FRU File ID");
+	p += i, len -= i;
+
+	j = 0;
+	while (len != 0 && j < CUSTOM_FIELDS) {
+		i = parse_string(p, &fru->custom[j], "Custom Field");
+		p += i, len -= i, j++;
+	}
+
+	if (*p != 0xC1) {
+		printf_err("PRODUCT INFO not terminated properly, "
+				"offset %02i(0x%02x) : %02i(0x%02x) should be 0xC1\n",
+				p - data, p - data, *p, *p);
+		goto err;
+	}
+
+	return fru;
+
+err:
+	free(fru->manufacturer);
+	free(fru->product_name);
+	free(fru->part_number);
+	free(fru->product_version);
+	free(fru->serial_number);
+	free(fru->asset_tag);
+	free(fru->FRU_file_ID);
+	for( j = 0; j < CUSTOM_FIELDS; j++)
+		free(fru->custom[j]);
+	free(fru);
+	return NULL;
+}
+
+
+/*
  * Each record in this area begins with a pre-defined header as specified in the
  * section 16 in the Platform Management FRU Information Storage Definition.
  * This header contains a ‘Type’ field that identifies what information is
@@ -596,7 +689,7 @@ struct FRU_DATA * parse_FRU (unsigned char *data)
 
 	/* Parse Chassis Info Area */
 	if (data[2]) {
-		printf_err("Chassis Info Area not yet implmented - sorry\n");
+		printf_err("Chassis Info Area not yet implemented - sorry\n");
 		goto err;
 	}
 
@@ -607,10 +700,11 @@ struct FRU_DATA * parse_FRU (unsigned char *data)
 			goto err;
 	}
 
-	/* Parse Chassis Info Area */
+	/* Parse Product Info Area */
 	if (data[4]) {
-		printf_err("Chassis Info Area parsing not yet implemented - sorry\n");
-		goto err;
+		fru->Product_Area = parse_product_area(&data[data[4] * 8]);
+		if (!fru->Product_Area)
+			goto err;
 	}
 
 	/* Parse MultiRecord Area */
@@ -749,7 +843,33 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 		buf[i] = 256 - calc_zero_checksum(&buf[st], len);
 		i++;
 	}
-	if (fru->Product_Info) {
+	if (fru->Product_Area) {
+		len = st = i;
+		buf[4] = i / 8;
+		buf[i] = 0x1;   /* Magic number */
+		/* buf[i+1] = length, which needs to be determined later */
+		buf[i+2] = 25;  /* English */
+
+		i += 3;
+		i += insert_str(&buf[i], fru->Product_Area->manufacturer, packed);
+		i += insert_str(&buf[i], fru->Product_Area->product_name, packed);
+		i += insert_str(&buf[i], fru->Product_Area->part_number, packed);
+		i += insert_str(&buf[i], fru->Product_Area->product_version, packed);
+		i += insert_str(&buf[i], fru->Product_Area->serial_number, packed);
+		i += insert_str(&buf[i], fru->Product_Area->asset_tag, packed);
+		i += insert_str(&buf[i], fru->Product_Area->FRU_file_ID, packed);
+		for (j = 0; j < CUSTOM_FIELDS; j++) {
+			if (fru->Product_Area->custom[j]) {
+				i += insert_str(&buf[i], fru->Product_Area->custom[j], packed);
+			}
+		}
+		buf[i] = 0xC1;
+		i++;
+		i = (((i >> 3) + 1) << 3) - 1;
+		len = i - st;
+		buf[st + 1] = len / 8 + 1;
+		buf[i] = 256 - calc_zero_checksum(&buf[st], len);
+		i++;
 	}
 	if (fru->MultiRecord_Area) {
 		st = i;
@@ -813,6 +933,7 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 			buf[last + 3] = 0;
 			buf[last + 3] = 0x100 - calc_zero_checksum(&buf[last - 1], 4);
 		}
+		if( i==st) buf[5] = 0; /* no record area! */
 	}
 	buf[7] = 256 - calc_zero_checksum(buf, 6);
 

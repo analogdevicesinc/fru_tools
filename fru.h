@@ -87,6 +87,19 @@ struct BOARD_INFO {
 	unsigned char *custom[CUSTOM_FIELDS];
 };
 
+struct PRODUCT_INFO {
+	unsigned char language_code;
+	unsigned char *manufacturer;
+	unsigned char *product_name;
+	unsigned char *part_number;
+	unsigned char *product_version;
+	unsigned char *serial_number;
+	unsigned char *asset_tag;
+	unsigned char *FRU_file_ID;
+	unsigned char *custom[CUSTOM_FIELDS];
+};
+
+
 #define NUM_MULTI     3
 #define NUM_SUPPLIES 12
 
@@ -110,7 +123,7 @@ struct FRU_DATA {
 	char *Internal_Area;
 	char *Chassis_Info;
 	struct BOARD_INFO *Board_Area;
-	char *Product_Info;
+	struct PRODUCT_INFO *Product_Area;
 	struct MULTIRECORD_INFO *MultiRecord_Area;
 };
 
