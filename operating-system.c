@@ -187,13 +187,14 @@ void dump_PRODUCT(struct PRODUCT_INFO *fru)
 	dump_fru_field("Serial Number", 0, fru->serial_number);
 	dump_fru_field("Asset tag", 0, fru->asset_tag);
 	dump_fru_field("FRU File ID", 0, fru->FRU_file_ID);
-        printf("---- Product Area -----\n");
+        printf("---- Product Area End -----\n");
 }
 
 void dump_BOARD(struct BOARD_INFO *fru)
 {
 	unsigned int i, j;
 	if(!fru) return;
+        printf("---- Board Area -----\n");
 	time_t tmp = min2date(fru->mfg_date);
 
 	printf("Date of Man\t: %s", ctime(&tmp));
@@ -243,6 +244,7 @@ void dump_BOARD(struct BOARD_INFO *fru)
 			}
 		}
 	}
+        printf("---- Board Area End -----\n");
 }
 
 /* 
