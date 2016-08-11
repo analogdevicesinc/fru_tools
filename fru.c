@@ -572,7 +572,7 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data,bool repair)
 		if (i != 0)
 			p += 5 + p[2];
 		if (p[0] >= 0x06 && p[0] <= 0xBF) {
-			printf_err("MultiRecord Area %i: Invalid Record Header\n", i);
+			printf_err("MultiRecord Area %i: Invalid Record Header %X\n", i, p[0]);
 			return NULL;
 		}
 		if ((crc=calc_zero_checksum(p, 4))) {
@@ -734,16 +734,20 @@ struct FRU_DATA * parse_FRU (unsigned char *data,bool repair)
 
 	/* Parse Board Area */
 	if (data[3]) {
+		printf("Parse Board Area\n");
 		fru->Board_Area = parse_board_area(&data[data[3] * 8],repair);
 		if (!fru->Board_Area)
 			goto err;
+		printf("Parse Board Area done\n");
 	}
 
 	/* Parse Product Info Area */
 	if (data[4]) {
+		printf("Parse Product Area\n");
 		fru->Product_Area = parse_product_area(&data[data[4] * 8],repair);
 		if (!fru->Product_Area)
 			goto err;
+		printf("Parse Product Area done\n");
 	}
 
 	/* Parse MultiRecord Area */
