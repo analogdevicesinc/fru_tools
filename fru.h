@@ -135,7 +135,7 @@ struct FRU_DATA {
 extern void printf_err (const char *, ...);
 extern void printf_warn (const char *, ...);
 extern void printf_info (const char *, ...);
-extern struct FRU_DATA * parse_FRU (unsigned char *);
+extern struct FRU_DATA * parse_FRU (unsigned char *,bool);
 extern void free_FRU (struct FRU_DATA * fru);
 extern unsigned char * build_FRU_blob (struct FRU_DATA *, size_t *, bool);
 extern time_t min2date(unsigned int mins);

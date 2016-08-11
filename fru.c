@@ -373,8 +373,9 @@ unsigned int parse_string(unsigned char *p, unsigned char **str, const char * fi
  * Board Info Area Format
  * Platform Management FRU Information Storage Definition: Section 11
  */
-struct BOARD_INFO * parse_board_area(unsigned char *data)
+struct BOARD_INFO * parse_board_area(unsigned char *data,bool repair)
 {
+    unsigned int crc=0;
 
 	struct BOARD_INFO *fru;
 	unsigned char *p;
@@ -388,9 +389,9 @@ struct BOARD_INFO * parse_board_area(unsigned char *data)
 	}
 
 	len = (data[1] * 8) - 1;
-	if (calc_zero_checksum(data, len)) {
-		printf_err("Board Area Checksum failed");
-		goto err;
+	if ( (crc=calc_zero_checksum(data, len)) ) {
+		printf_warn("Board Area Checksum failed %X\n",0xFF&(data[len]-crc));
+		if(!repair) goto err;
 	}
 
 	if (data[2] != 0 && data[2] != 25) {
@@ -458,7 +459,7 @@ err:
  * Product Info Area Format
  * Platform Management FRU Information Storage Definition: Section 12
  */
-struct PRODUCT_INFO * parse_product_area(unsigned char *data)
+struct PRODUCT_INFO * parse_product_area(unsigned char *data,bool repair)
 {
     unsigned int crc=0;
 
@@ -475,8 +476,8 @@ struct PRODUCT_INFO * parse_product_area(unsigned char *data)
 
 	len = (data[1] * 8) - 1;
 	if ( (crc=calc_zero_checksum(data, len)) ) {
-		printf_err("Product Area Checksum failed\n");
-		goto err;
+		printf_warn("Product Area Checksum failed %X\n",0xFF&(data[len]-crc));
+		if(!repair) goto err;
 	}
 
 	if (data[2] != 0 && data[2] != 25) {
@@ -555,8 +556,9 @@ err:
  * in section 5.5.1 of the FMC specification "IPMI Support". These FMC specific
  * sections have a 1 byte sub-type, and a 3 byte Unique Organization Identifier
  */
-struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
+struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data,bool repair)
 {
+        unsigned int crc=0;
 	int i = 0, tmp, type;
 	unsigned char *p;
 	struct MULTIRECORD_INFO *multi;
@@ -573,15 +575,16 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
 			printf_err("MultiRecord Area %i: Invalid Record Header\n", i);
 			return NULL;
 		}
-		if (calc_zero_checksum(p, 4)) {
-			printf_err("MultiRecord Area %i (Record Type 0x%x): "
-					"Header Checksum failed\n", i, p[0]);
-			return NULL;
+		if ((crc=calc_zero_checksum(p, 4))) {
+			printf_warn("MultiRecord Area %i (Record Type 0x%x): "
+					"Header Checksum failed (expect %X but is %X)\n",
+                                        i, p[0], 0xFF&(p[4]-crc), p[4]);
+			if(!repair) return NULL;
 		}
 
-		if (!p[2] || ((calc_zero_checksum(p+5, p[2] - 1) + p[3]) & 0xFF)) {
-			printf_err("MultiRecord Area %i (Record Type 0x%x): "
-					"Record Checksum failed\n", i, p[0]);
+		if (!p[2] || (crc=(calc_zero_checksum(p+5, p[2] - 1) + p[3]) & 0xFF)) {
+			printf_warn("MultiRecord Area %i (Record Type 0x%x): "
+					"Record Checksum failed %X %X\n", i, p[0],0xFF&(p[3]-crc),0xFF&(p[4]+crc));
 			return NULL;
 		}
 
@@ -692,8 +695,9 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
  * Common Header Format
  * Section 8 in the Platform Management FRU Information Storage Definition
  */
-struct FRU_DATA * parse_FRU (unsigned char *data)
+struct FRU_DATA * parse_FRU (unsigned char *data,bool repair)
 {
+	unsigned int crc=0;
 	struct FRU_DATA *fru;
 
 	fru = x_calloc (1, sizeof(struct FRU_DATA));
@@ -711,9 +715,9 @@ struct FRU_DATA * parse_FRU (unsigned char *data)
 	}
 
 	/* Check header checksum */
-	if (calc_zero_checksum(data, 7)) {
-		printf_err("Common Header Checksum failed\n");
-		goto err;
+	if ( (crc=calc_zero_checksum(data, 7)) ) {
+		printf_warn("Common Header Checksum failed %X\n",0xFF&(data[7]-crc));
+                if( !repair) goto err;
 	}
 
 	/* Parse Internal Use Area */
@@ -730,21 +734,21 @@ struct FRU_DATA * parse_FRU (unsigned char *data)
 
 	/* Parse Board Area */
 	if (data[3]) {
-		fru->Board_Area = parse_board_area(&data[data[3] * 8]);
+		fru->Board_Area = parse_board_area(&data[data[3] * 8],repair);
 		if (!fru->Board_Area)
 			goto err;
 	}
 
 	/* Parse Product Info Area */
 	if (data[4]) {
-		fru->Product_Area = parse_product_area(&data[data[4] * 8]);
+		fru->Product_Area = parse_product_area(&data[data[4] * 8],repair);
 		if (!fru->Product_Area)
 			goto err;
 	}
 
 	/* Parse MultiRecord Area */
 	if (data[5])
-		fru->MultiRecord_Area = parse_multiboard_area(&data[data[5] * 8]);
+		fru->MultiRecord_Area = parse_multiboard_area(&data[data[5] * 8],repair);
 
 	return fru;
 

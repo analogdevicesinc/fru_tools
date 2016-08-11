@@ -447,9 +447,10 @@ int main(int argc, char **argv)
 	int dump = 0;
 	bool force_packing = false;
 	bool output_required = false;
+	bool repair = false;
 
 	opterr = 0;
-	while ((c = getopt (argc, argv, "26bcpv?d:h:s:t:i:o:")) != -1)
+	while ((c = getopt (argc, argv, "26rbcpv?d:h:s:t:i:o:")) != -1)
 	switch (c) {
 		case 'b':
 			dump |= DUMP_BOARD;
@@ -462,6 +463,9 @@ int main(int argc, char **argv)
 			break;
 		case '6':
 			force_packing = true;
+			break;
+		case 'r':
+			repair = true;
 			break;
 		case 'd':
 		{
@@ -541,7 +545,7 @@ int main(int argc, char **argv)
 		printf_err("no output file specified\n");
 
 	if (raw_input_data) {
-		fru = parse_FRU(raw_input_data);
+		fru = parse_FRU(raw_input_data,repair);
 		free(raw_input_data);
 	}
 
