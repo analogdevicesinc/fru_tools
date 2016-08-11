@@ -850,6 +850,7 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 		printf_err("Chassis Info not yet implemented - sorry\n");
 
 	if (fru->Board_Area) {
+		printf("Write Board Area\n");
 		len = st = i;
 		buf[3] = i / 8;
 		buf[i] = 0x1;   /* Magic number */
@@ -879,6 +880,7 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 		i++;
 	}
 	if (fru->Product_Area) {
+		printf("Write Product Area\n");
 		len = st = i;
 		buf[4] = i / 8;
 		buf[i] = 0x1;   /* Magic number */
@@ -907,6 +909,7 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 		i++;
 	}
 	if (fru->MultiRecord_Area) {
+		printf("Write (part of) MultiRecord Area\n");
 		st = i;
 		buf[5] = st / 8;
 		for (tmp = 0; tmp < fru->MultiRecord_Area->picmg_cnt; tmp++) {
