@@ -909,6 +909,20 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 	if (fru->MultiRecord_Area) {
 		st = i;
 		buf[5] = st / 8;
+		for (tmp = 0; tmp < fru->MultiRecord_Area->picmg_cnt; tmp++) {
+			p = fru->MultiRecord_Area->picmg[tmp];
+			if (!p)
+				continue;
+                        printf(".. Write PICMG\n");
+			memcpy(&buf[i], p, p[2]+ 5);
+			/* Record Checksum */
+			buf[i+3] = 0x100 - calc_zero_checksum(&buf[i+5], buf[i+2] - 1);
+			/* Header Checksum */
+			buf[i+4] = 0;
+			buf[i+4] = 0x100 - calc_zero_checksum(&buf[i], 4);
+			last = i + 1;
+			i += p[2] + 5;
+		}
 		for (tmp = 0; tmp < NUM_SUPPLIES; tmp++) {
 			p = fru->MultiRecord_Area->supplies[tmp];
 			if (!p)
