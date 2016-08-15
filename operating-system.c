@@ -431,6 +431,7 @@ void usage (void)
 		"    -s <str>\tset serial number (string)\n"
 		"    -t <str>\tset tuning parameters\n"
 		"    -6\t\tforce output to be in 6-bit ASCII\n"
+		"    -r\t\tdo not quit on wrong CRCs -> repair them\n"
 	);
 }
 
