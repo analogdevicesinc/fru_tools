@@ -558,14 +558,14 @@ err:
  */
 struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data,bool repair)
 {
-        unsigned int crc=0;
+	unsigned int crc=0;
 	int i = 0, tmp, type;
 	unsigned char *p;
 	struct MULTIRECORD_INFO *multi;
 
 	multi = x_calloc(1, sizeof(struct MULTIRECORD_INFO));
 
-        multi->picmg_cnt=0;
+	multi->picmg_cnt=0;
 	p = data;
 
 	do {
@@ -578,7 +578,7 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data,bool repair)
 		if ((crc=calc_zero_checksum(p, 4))) {
 			printf_warn("MultiRecord Area %i (Record Type 0x%x): "
 					"Header Checksum failed (expect %X but is %X)\n",
-                                        i, p[0], 0xFF&(p[4]-crc), p[4]);
+					i, p[0], 0xFF&(p[4]-crc), p[4]);
 			if(!repair) return NULL;
 		}
 
@@ -592,39 +592,38 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data,bool repair)
 		 * Record Type ID
 		 */
 		switch(p[0]) {
-                        case MULTIRECORD_PICMG:
-				printf("PICMG Multirecords\n");
+			case MULTIRECORD_PICMG:
+				printf_info("PICMG Multirecords\n");
 				multi->picmg[multi->picmg_cnt] = x_calloc(1, p[2] + 5);
 				memcpy (multi->picmg[multi->picmg_cnt], p, p[2] + 5);
-                                switch(p[8]){
-                                    case 0x16:
-                                        printf("... PICMG Module Current Requirement\n");
-                                        break;
-                                    case 0x17:
-                                        printf("... PICMG Carrier Activation and Current Management\n");
-                                        break;
-                                    case 0x18:
-                                        printf("... PICMG Carrier P2P Connectivity\n");
-                                        break;
-                                    case 0x19:
-                                        printf("... PICMG AMC P2P Connectivity\n");
-                                        break;
-                                    case 0x1A:
-                                        printf("... PICMG Carrier Information Table\n");
-                                        break;
-                                    case 0x2C:
-                                        printf("... PICMG Carrier Clock P2P Connectivity\n");
-                                        break;
-                                    case 0x2D:
-                                        printf("... PICMG Clock Configuration\n");
-                                        break;
-                                    default:
-                                        printf("... Unknown $%02X\n",p[8]);
-                                        break;                                        
-                                }
-                
-                                multi->picmg_cnt++;
-                                break;
+				switch(p[8]){
+					case 0x16:
+						printf_info("... PICMG Module Current Requirement\n");
+						break;
+					case 0x17:
+						printf_info("... PICMG Carrier Activation and Current Management\n");
+						break;
+					case 0x18:
+						printf_info("... PICMG Carrier P2P Connectivity\n");
+						break;
+					case 0x19:
+						printf_info("... PICMG AMC P2P Connectivity\n");
+						break;
+					case 0x1A:
+						printf_info("... PICMG Carrier Information Table\n");
+						break;
+					case 0x2C:
+						printf_info("... PICMG Carrier Clock P2P Connectivity\n");
+						break;
+					case 0x2D:
+						printf_info("... PICMG Clock Configuration\n");
+						break;
+					default:
+						printf_info("... Unknown $%02X\n",p[8]);
+						break;                                        
+				}                
+				multi->picmg_cnt++;
+				break;
 			case MULTIRECORD_DC_OUTPUT:
 			case MULTIRECORD_DC_INPUT:
 				tmp = p[5] & 0xF;
@@ -717,7 +716,7 @@ struct FRU_DATA * parse_FRU (unsigned char *data,bool repair)
 	/* Check header checksum */
 	if ( (crc=calc_zero_checksum(data, 7)) ) {
 		printf_warn("Common Header Checksum failed %X\n",0xFF&(data[7]-crc));
-                if( !repair) goto err;
+		if( !repair) goto err;
 	}
 
 	/* Parse Internal Use Area */
@@ -734,20 +733,20 @@ struct FRU_DATA * parse_FRU (unsigned char *data,bool repair)
 
 	/* Parse Board Area */
 	if (data[3]) {
-		printf("Parse Board Area\n");
+		printf_info("Parse Board Area\n");
 		fru->Board_Area = parse_board_area(&data[data[3] * 8],repair);
 		if (!fru->Board_Area)
 			goto err;
-		printf("Parse Board Area done\n");
+		printf_info("Parse Board Area done\n");
 	}
 
 	/* Parse Product Info Area */
 	if (data[4]) {
-		printf("Parse Product Area\n");
+		printf_info("Parse Product Area\n");
 		fru->Product_Area = parse_product_area(&data[data[4] * 8],repair);
 		if (!fru->Product_Area)
 			goto err;
-		printf("Parse Product Area done\n");
+		printf_info("Parse Product Area done\n");
 	}
 
 	/* Parse MultiRecord Area */
@@ -858,7 +857,7 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 		printf_err("Chassis Info not yet implemented - sorry\n");
 
 	if (fru->Board_Area) {
-		printf("Write Board Area\n");
+		printf_info("Write Board Area\n");
 		len = st = i;
 		buf[3] = i / 8;
 		buf[i] = 0x1;   /* Magic number */
@@ -888,7 +887,7 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 		i++;
 	}
 	if (fru->Product_Area) {
-		printf("Write Product Area\n");
+		printf_info("Write Product Area\n");
 		len = st = i;
 		buf[4] = i / 8;
 		buf[i] = 0x1;   /* Magic number */
@@ -917,14 +916,14 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 		i++;
 	}
 	if (fru->MultiRecord_Area) {
-		printf("Write (part of) MultiRecord Area\n");
+		printf_info("Write (part of) MultiRecord Area\n");
 		st = i;
 		buf[5] = st / 8;
 		for (tmp = 0; tmp < fru->MultiRecord_Area->picmg_cnt; tmp++) {
 			p = fru->MultiRecord_Area->picmg[tmp];
 			if (!p)
 				continue;
-                        printf(".. Write PICMG\n");
+			printf_info(".. Write PICMG\n");
 			memcpy(&buf[i], p, p[2]+ 5);
 			/* Record Checksum */
 			buf[i+3] = 0x100 - calc_zero_checksum(&buf[i+5], buf[i+2] - 1);

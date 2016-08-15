@@ -104,7 +104,7 @@ struct PRODUCT_INFO {
 #define NUM_SUPPLIES 12
 
 struct MULTIRECORD_INFO {
-        int picmg_cnt;
+	unsigned int picmg_cnt;
 	unsigned char *picmg[NUM_SUPPLIES];
 	unsigned char *supplies[NUM_SUPPLIES];
 	unsigned char *connector;
