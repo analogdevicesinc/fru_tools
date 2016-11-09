@@ -51,6 +51,11 @@
 #include <stdarg.h>
 #include <limits.h>
 
+#if defined(__APPLE__)
+#include <libkern/OSByteOrder.h>
+#define __bswap_32 OSSwapInt32
+#endif
+
 #include "fru.h"
 
 /*
