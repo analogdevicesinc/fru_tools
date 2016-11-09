@@ -5,15 +5,13 @@ dist: trusty
 
 language : c
 
-before_compile:
-  - sudo apt-get install valgrind
-
 compiler:
   - clang
   - gcc
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update ; fi
+  - sudo apt-get install valgrind
 
 script:
   - make
