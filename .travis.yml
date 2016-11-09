@@ -1,18 +1,18 @@
 os:
   - linux
+  - osx
 
 dist: trusty
 
 language : c
 
 compiler:
-  - clang
   - gcc
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update ; fi
-  - sudo apt-get install valgrind
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]] ; then sudo apt-get install valgrind ; fi
 
 script:
   - make
-  - make test
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]] ; then make test ; fi
