@@ -256,7 +256,7 @@ void dump_MULTIRECORD (struct MULTIRECORD_INFO *fru)
 
 	z = x_calloc(1, 12);
 
-	for (i= 0; i <= NUM_SUPPLIES; i++) {
+	for (i= 0; i <= NUM_SUPPLIES - 1; i++) {
 		if (!fru->supplies[i])
 			continue;
 		p = fru->supplies[i];
