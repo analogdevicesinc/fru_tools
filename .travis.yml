@@ -1,10 +1,12 @@
 os:
   - linux
-  - osx
 
 dist: trusty
 
 language : c
+
+before_compile:
+  - sudo apt-get install valgrind
 
 compiler:
   - clang
