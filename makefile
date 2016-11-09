@@ -52,6 +52,7 @@ install:
 	install ./fru-dump $(DESTDIR)/bin/
 	install -d $(PLIB)
 	install ./masterfiles/* $(PLIB)
+	install -d $(DESTDIR)/share/man/man1
 	install ./fru-dump.1 $(DESTDIR)/share/man/man1/
 
 clean:
