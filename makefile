@@ -50,9 +50,6 @@ test: ALL
 install:
 	install -d $(DESTDIR)/bin
 	install ./fru-dump $(DESTDIR)/bin/
-	install -d $(PLIB)
-	install ./masterfiles/* $(PLIB)
-	install ./fru-dump.1 /usr/share/man/man1/
 
 clean:
 	rm -f fru-dump fru-dump.exe fru-tools-*_installer.exe *.o
