@@ -176,9 +176,25 @@ static void dump_fru_field(const char * description, size_t offset, unsigned cha
 	}
 }
 
+void dump_PRODUCT(struct PRODUCT_INFO *fru)
+{
+	if(!fru) return;
+        printf("---- Product Area -----\n");
+	dump_fru_field("Manufacturer", 0, fru->manufacturer);
+	dump_fru_field("Product Name", 0, fru->product_name);
+	dump_fru_field("Part Number", 0, fru->part_number);
+	dump_fru_field("Product Version", 0, fru->product_version);
+	dump_fru_field("Serial Number", 0, fru->serial_number);
+	dump_fru_field("Asset tag", 0, fru->asset_tag);
+	dump_fru_field("FRU File ID", 0, fru->FRU_file_ID);
+        printf("---- Product Area End -----\n");
+}
+
 void dump_BOARD(struct BOARD_INFO *fru)
 {
 	unsigned int i, j;
+	if(!fru) return;
+        printf("---- Board Area -----\n");
 	time_t tmp = min2date(fru->mfg_date);
 
 	printf("Date of Man\t: %s", ctime(&tmp));
@@ -228,6 +244,7 @@ void dump_BOARD(struct BOARD_INFO *fru)
 			}
 		}
 	}
+        printf("---- Board Area End -----\n");
 }
 
 /* 
@@ -253,6 +270,7 @@ void dump_MULTIRECORD (struct MULTIRECORD_INFO *fru)
 {
 	unsigned char *p, *n, *z;
 	int i;
+	if(!fru) return;
 
 	z = x_calloc(1, 12);
 
@@ -399,7 +417,7 @@ void usage (void)
 		"    -i\tinput file\n"
 		"    -o\toutput file, only makes sense when changing something\n");
 	printf("  dump info\n"
-		"    -b\tdump board info\n"
+		"    -b\tdump board and product info\n"
 		"    -c\tdump connector info\n"
 		"    -p\tdump power supply info\n"
 		"    -2\tdump I2C info\n"
@@ -413,6 +431,7 @@ void usage (void)
 		"    -s <str>\tset serial number (string)\n"
 		"    -t <str>\tset tuning parameters\n"
 		"    -6\t\tforce output to be in 6-bit ASCII\n"
+		"    -r\t\tdo not quit on wrong CRCs -> repair them\n"
 	);
 }
 
@@ -429,9 +448,10 @@ int main(int argc, char **argv)
 	int dump = 0;
 	bool force_packing = false;
 	bool output_required = false;
+	bool repair = false;
 
 	opterr = 0;
-	while ((c = getopt (argc, argv, "26bcpv?d:h:s:t:i:o:")) != -1)
+	while ((c = getopt (argc, argv, "26rbcpv?d:h:s:t:i:o:")) != -1)
 	switch (c) {
 		case 'b':
 			dump |= DUMP_BOARD;
@@ -444,6 +464,9 @@ int main(int argc, char **argv)
 			break;
 		case '6':
 			force_packing = true;
+			break;
+		case 'r':
+			repair = true;
 			break;
 		case 'd':
 		{
@@ -523,7 +546,7 @@ int main(int argc, char **argv)
 		printf_err("no output file specified\n");
 
 	if (raw_input_data) {
-		fru = parse_FRU(raw_input_data);
+		fru = parse_FRU(raw_input_data,repair);
 		free(raw_input_data);
 	}
 
@@ -550,8 +573,10 @@ int main(int argc, char **argv)
 		printf_info("changing date to %s", ctime(&tmp));
 	}
 
-	if (fru && dump & DUMP_BOARD)
+	if (fru && dump & DUMP_BOARD){
 		dump_BOARD(fru->Board_Area);
+		dump_PRODUCT(fru->Product_Area);
+        }
 
 	if (fru && dump & DUMP_SUPPLY)
 		dump_MULTIRECORD(fru->MultiRecord_Area);

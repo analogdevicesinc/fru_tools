@@ -378,8 +378,9 @@ unsigned int parse_string(unsigned char *p, unsigned char **str, const char * fi
  * Board Info Area Format
  * Platform Management FRU Information Storage Definition: Section 11
  */
-struct BOARD_INFO * parse_board_area(unsigned char *data)
+struct BOARD_INFO * parse_board_area(unsigned char *data,bool repair)
 {
+    unsigned int crc=0;
 
 	struct BOARD_INFO *fru;
 	unsigned char *p;
@@ -393,9 +394,9 @@ struct BOARD_INFO * parse_board_area(unsigned char *data)
 	}
 
 	len = (data[1] * 8) - 1;
-	if (calc_zero_checksum(data, len)) {
-		printf_err("Board Area Checksum failed");
-		goto err;
+	if ( (crc=calc_zero_checksum(data, len)) ) {
+		printf_warn("Board Area Checksum failed %X\n",0xFF&(data[len]-crc));
+		if(!repair) goto err;
 	}
 
 	if (data[2] != 0 && data[2] != 25) {
@@ -460,6 +461,99 @@ err:
 }
 
 /*
+ * Product Info Area Format
+ * Platform Management FRU Information Storage Definition: Section 12
+ */
+struct PRODUCT_INFO * parse_product_area(unsigned char *data,bool repair)
+{
+    unsigned int crc=0;
+
+	struct PRODUCT_INFO *fru;
+	unsigned char *p;
+	unsigned int len, i, j;
+
+	fru = x_calloc(1, sizeof(struct PRODUCT_INFO));
+
+	if (data[0] != 0x01) {
+		printf_err("Product Area Format Version mismatch: 0x%02x should be 0x01\n", data [0]);
+		goto err;
+	}
+
+	len = (data[1] * 8) - 1;
+	if ( (crc=calc_zero_checksum(data, len)) ) {
+		printf_warn("Product Area Checksum failed %X\n",0xFF&(data[len]-crc));
+		if(!repair) goto err;
+	}
+
+	if (data[2] != 0 && data[2] != 25) {
+		printf_err("Product Area is non-English - sorry: Lang code = %i\n", data[2]);
+		goto err;
+	}
+
+	len--;
+	while ((data[len] == 0x00) && (len != 0))
+		len--;
+	if (len == 0 || data[len] != 0xC1) {
+		printf_err("PRODUCT INFO not terminated properly, walking backwards len: "
+				"%i:0x%02x should be 0xC1\n", len, data[len]);
+		goto err;
+	}
+
+	p = &data[3];
+	len -= 3;
+
+	i = parse_string(p, &fru->manufacturer, "Manufacturer");
+	p += i, len -= i;
+
+	i = parse_string(p, &fru->product_name, "Product Name");
+	p += i, len -= i;
+
+	i = parse_string(p, &fru->part_number, "Part Number");
+	p += i, len -= i;
+
+	i = parse_string(p, &fru->product_version, "Product Version");
+	p += i, len -= i;
+        
+        i = parse_string(p, &fru->serial_number, "Serial Number");
+	p += i, len -= i;
+
+        i = parse_string(p, &fru->asset_tag, "Asset Tag");
+	p += i, len -= i;
+
+	i = parse_string(p, &fru->FRU_file_ID, "FRU File ID");
+	p += i, len -= i;
+
+	j = 0;
+	while (len != 0 && j < CUSTOM_FIELDS) {
+		i = parse_string(p, &fru->custom[j], "Custom Field");
+		p += i, len -= i, j++;
+	}
+
+	if (*p != 0xC1) {
+		printf_err("PRODUCT INFO not terminated properly, "
+				"offset %02i(0x%02x) : %02i(0x%02x) should be 0xC1\n",
+				p - data, p - data, *p, *p);
+		goto err;
+	}
+
+	return fru;
+
+err:
+	free(fru->manufacturer);
+	free(fru->product_name);
+	free(fru->part_number);
+	free(fru->product_version);
+	free(fru->serial_number);
+	free(fru->asset_tag);
+	free(fru->FRU_file_ID);
+	for( j = 0; j < CUSTOM_FIELDS; j++)
+		free(fru->custom[j]);
+	free(fru);
+	return NULL;
+}
+
+
+/*
  * Each record in this area begins with a pre-defined header as specified in the
  * section 16 in the Platform Management FRU Information Storage Definition.
  * This header contains a ‘Type’ field that identifies what information is
@@ -467,32 +561,35 @@ err:
  * in section 5.5.1 of the FMC specification "IPMI Support". These FMC specific
  * sections have a 1 byte sub-type, and a 3 byte Unique Organization Identifier
  */
-struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
+struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data,bool repair)
 {
+	unsigned int crc=0;
 	int i = 0, tmp, type;
 	unsigned char *p;
 	struct MULTIRECORD_INFO *multi;
 
 	multi = x_calloc(1, sizeof(struct MULTIRECORD_INFO));
 
+	multi->picmg_cnt=0;
 	p = data;
 
 	do {
 		if (i != 0)
 			p += 5 + p[2];
 		if (p[0] >= 0x06 && p[0] <= 0xBF) {
-			printf_err("MultiRecord Area %i: Invalid Record Header\n", i);
+			printf_err("MultiRecord Area %i: Invalid Record Header %X\n", i, p[0]);
 			return NULL;
 		}
-		if (calc_zero_checksum(p, 4)) {
-			printf_err("MultiRecord Area %i (Record Type 0x%x): "
-					"Header Checksum failed\n", i, p[0]);
-			return NULL;
+		if ((crc=calc_zero_checksum(p, 4))) {
+			printf_warn("MultiRecord Area %i (Record Type 0x%x): "
+					"Header Checksum failed (expect %X but is %X)\n",
+					i, p[0], 0xFF&(p[4]-crc), p[4]);
+			if(!repair) return NULL;
 		}
 
-		if (!p[2] || ((calc_zero_checksum(p+5, p[2] - 1) + p[3]) & 0xFF)) {
-			printf_err("MultiRecord Area %i (Record Type 0x%x): "
-					"Record Checksum failed\n", i, p[0]);
+		if (!p[2] || (crc=(calc_zero_checksum(p+5, p[2] - 1) + p[3]) & 0xFF)) {
+			printf_warn("MultiRecord Area %i (Record Type 0x%x): "
+					"Record Checksum failed %X %X\n", i, p[0],0xFF&(p[3]-crc),0xFF&(p[4]+crc));
 			return NULL;
 		}
 
@@ -500,6 +597,38 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
 		 * Record Type ID
 		 */
 		switch(p[0]) {
+			case MULTIRECORD_PICMG:
+				printf_info("PICMG Multirecords\n");
+				multi->picmg[multi->picmg_cnt] = x_calloc(1, p[2] + 5);
+				memcpy (multi->picmg[multi->picmg_cnt], p, p[2] + 5);
+				switch(p[8]){
+					case 0x16:
+						printf_info("... PICMG Module Current Requirement\n");
+						break;
+					case 0x17:
+						printf_info("... PICMG Carrier Activation and Current Management\n");
+						break;
+					case 0x18:
+						printf_info("... PICMG Carrier P2P Connectivity\n");
+						break;
+					case 0x19:
+						printf_info("... PICMG AMC P2P Connectivity\n");
+						break;
+					case 0x1A:
+						printf_info("... PICMG Carrier Information Table\n");
+						break;
+					case 0x2C:
+						printf_info("... PICMG Carrier Clock P2P Connectivity\n");
+						break;
+					case 0x2D:
+						printf_info("... PICMG Clock Configuration\n");
+						break;
+					default:
+						printf_info("... Unknown $%02X\n",p[8]);
+						break;                                        
+				}                
+				multi->picmg_cnt++;
+				break;
 			case MULTIRECORD_DC_OUTPUT:
 			case MULTIRECORD_DC_INPUT:
 				tmp = p[5] & 0xF;
@@ -556,7 +685,8 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
 				}
 				break;
 			default:
-				printf_err("Unknown MultiRecord Area\n");
+				printf_warn("Unknown MultiRecord Area\n");
+				break;
 		}
 
 		i++;
@@ -569,8 +699,9 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
  * Common Header Format
  * Section 8 in the Platform Management FRU Information Storage Definition
  */
-struct FRU_DATA * parse_FRU (unsigned char *data)
+struct FRU_DATA * parse_FRU (unsigned char *data,bool repair)
 {
+	unsigned int crc=0;
 	struct FRU_DATA *fru;
 
 	fru = x_calloc (1, sizeof(struct FRU_DATA));
@@ -588,9 +719,9 @@ struct FRU_DATA * parse_FRU (unsigned char *data)
 	}
 
 	/* Check header checksum */
-	if (calc_zero_checksum(data, 7)) {
-		printf_err("Common Header Checksum failed\n");
-		goto err;
+	if ( (crc=calc_zero_checksum(data, 7)) ) {
+		printf_warn("Common Header Checksum failed %X\n",0xFF&(data[7]-crc));
+		if( !repair) goto err;
 	}
 
 	/* Parse Internal Use Area */
@@ -601,26 +732,31 @@ struct FRU_DATA * parse_FRU (unsigned char *data)
 
 	/* Parse Chassis Info Area */
 	if (data[2]) {
-		printf_err("Chassis Info Area not yet implmented - sorry\n");
+		printf_err("Chassis Info Area not yet implemented - sorry\n");
 		goto err;
 	}
 
 	/* Parse Board Area */
 	if (data[3]) {
-		fru->Board_Area = parse_board_area(&data[data[3] * 8]);
+		printf_info("Parse Board Area\n");
+		fru->Board_Area = parse_board_area(&data[data[3] * 8],repair);
 		if (!fru->Board_Area)
 			goto err;
+		printf_info("Parse Board Area done\n");
 	}
 
-	/* Parse Chassis Info Area */
+	/* Parse Product Info Area */
 	if (data[4]) {
-		printf_err("Chassis Info Area parsing not yet implemented - sorry\n");
-		goto err;
+		printf_info("Parse Product Area\n");
+		fru->Product_Area = parse_product_area(&data[data[4] * 8],repair);
+		if (!fru->Product_Area)
+			goto err;
+		printf_info("Parse Product Area done\n");
 	}
 
 	/* Parse MultiRecord Area */
 	if (data[5])
-		fru->MultiRecord_Area = parse_multiboard_area(&data[data[5] * 8]);
+		fru->MultiRecord_Area = parse_multiboard_area(&data[data[5] * 8],repair);
 
 	return fru;
 
@@ -726,6 +862,7 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 		printf_err("Chassis Info not yet implemented - sorry\n");
 
 	if (fru->Board_Area) {
+		printf_info("Write Board Area\n");
 		len = st = i;
 		buf[3] = i / 8;
 		buf[i] = 0x1;   /* Magic number */
@@ -754,11 +891,53 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 		buf[i] = 256 - calc_zero_checksum(&buf[st], len);
 		i++;
 	}
-	if (fru->Product_Info) {
+	if (fru->Product_Area) {
+		printf_info("Write Product Area\n");
+		len = st = i;
+		buf[4] = i / 8;
+		buf[i] = 0x1;   /* Magic number */
+		/* buf[i+1] = length, which needs to be determined later */
+		buf[i+2] = 25;  /* English */
+
+		i += 3;
+		i += insert_str(&buf[i], fru->Product_Area->manufacturer, packed);
+		i += insert_str(&buf[i], fru->Product_Area->product_name, packed);
+		i += insert_str(&buf[i], fru->Product_Area->part_number, packed);
+		i += insert_str(&buf[i], fru->Product_Area->product_version, packed);
+		i += insert_str(&buf[i], fru->Product_Area->serial_number, packed);
+		i += insert_str(&buf[i], fru->Product_Area->asset_tag, packed);
+		i += insert_str(&buf[i], fru->Product_Area->FRU_file_ID, packed);
+		for (j = 0; j < CUSTOM_FIELDS; j++) {
+			if (fru->Product_Area->custom[j]) {
+				i += insert_str(&buf[i], fru->Product_Area->custom[j], packed);
+			}
+		}
+		buf[i] = 0xC1;
+		i++;
+		i = (((i >> 3) + 1) << 3) - 1;
+		len = i - st;
+		buf[st + 1] = len / 8 + 1;
+		buf[i] = 256 - calc_zero_checksum(&buf[st], len);
+		i++;
 	}
 	if (fru->MultiRecord_Area) {
+		printf_info("Write (part of) MultiRecord Area\n");
 		st = i;
 		buf[5] = st / 8;
+		for (tmp = 0; tmp < fru->MultiRecord_Area->picmg_cnt; tmp++) {
+			p = fru->MultiRecord_Area->picmg[tmp];
+			if (!p)
+				continue;
+			printf_info(".. Write PICMG\n");
+			memcpy(&buf[i], p, p[2]+ 5);
+			/* Record Checksum */
+			buf[i+3] = 0x100 - calc_zero_checksum(&buf[i+5], buf[i+2] - 1);
+			/* Header Checksum */
+			buf[i+4] = 0;
+			buf[i+4] = 0x100 - calc_zero_checksum(&buf[i], 4);
+			last = i + 1;
+			i += p[2] + 5;
+		}
 		for (tmp = 0; tmp < NUM_SUPPLIES; tmp++) {
 			p = fru->MultiRecord_Area->supplies[tmp];
 			if (!p)
@@ -818,6 +997,7 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 			buf[last + 3] = 0;
 			buf[last + 3] = 0x100 - calc_zero_checksum(&buf[last - 1], 4);
 		}
+		if( i==st) buf[5] = 0; /* no record area! */
 	}
 	buf[7] = 256 - calc_zero_checksum(buf, 6);
 

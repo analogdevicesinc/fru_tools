@@ -87,10 +87,25 @@ struct BOARD_INFO {
 	unsigned char *custom[CUSTOM_FIELDS];
 };
 
+struct PRODUCT_INFO {
+	unsigned char language_code;
+	unsigned char *manufacturer;
+	unsigned char *product_name;
+	unsigned char *part_number;
+	unsigned char *product_version;
+	unsigned char *serial_number;
+	unsigned char *asset_tag;
+	unsigned char *FRU_file_ID;
+	unsigned char *custom[CUSTOM_FIELDS];
+};
+
+
 #define NUM_MULTI     3
 #define NUM_SUPPLIES 12
 
 struct MULTIRECORD_INFO {
+	unsigned int picmg_cnt;
+	unsigned char *picmg[NUM_SUPPLIES];
 	unsigned char *supplies[NUM_SUPPLIES];
 	unsigned char *connector;
 	unsigned char *i2c_devices;
@@ -106,18 +121,21 @@ struct MULTIRECORD_INFO {
 /* VITA’s Organizationally Unique Identifier - see rule 5.77 in the FMC spec */
 #define VITA_OUI 0x0012A2
 
+
+#define MULTIRECORD_PICMG       0xC0
+
 struct FRU_DATA {
 	char *Internal_Area;
 	char *Chassis_Info;
 	struct BOARD_INFO *Board_Area;
-	char *Product_Info;
+	struct PRODUCT_INFO *Product_Area;
 	struct MULTIRECORD_INFO *MultiRecord_Area;
 };
 
 extern void printf_err (const char *, ...);
 extern void printf_warn (const char *, ...);
 extern void printf_info (const char *, ...);
-extern struct FRU_DATA * parse_FRU (unsigned char *);
+extern struct FRU_DATA * parse_FRU (unsigned char *,bool);
 extern void free_FRU (struct FRU_DATA * fru);
 extern unsigned char * build_FRU_blob (struct FRU_DATA *, size_t *, bool);
 extern time_t min2date(unsigned int mins);
