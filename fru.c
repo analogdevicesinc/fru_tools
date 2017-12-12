@@ -5,7 +5,7 @@
  *
  * This file is maintained as part of:
  *    https://github.com/analogdevicesinc/fru_tools
- * but is released under this license, so you can use it without having 
+ * but is released under this license, so you can use it without having
  * your software fall under the GPL. If you make improvements to this,
  * although you are not required, it would be nice if you sent me a patch.
  *
@@ -100,8 +100,8 @@ unsigned char calc_zero_checksum (unsigned char *data, size_t len)
 /*
  * FRU Board Area Mfg. Date / Time is the
  * number of _minutes_ from 0:00 hrs 01Jan1996
- * Max is 0xFFFFFF (3 bytes worth) or 
- * 16777215 minutes; or 
+ * Max is 0xFFFFFF (3 bytes worth) or
+ * 16777215 minutes; or
  *   279620 hours, 15 minutes; or
  *   11650 days, 20 hours, 15 minutes; or
  *   31 years, 328 days, 7 hours, 56 minutes (assuming 525949 minutes in a year); or
@@ -394,7 +394,7 @@ struct BOARD_INFO * parse_board_area(unsigned char *data)
 
 	len = (data[1] * 8) - 1;
 	if (calc_zero_checksum(data, len)) {
-		printf_err("Board Area Checksum failed");
+		printf_err("Board Area Checksum failed\n");
 		goto err;
 	}
 
