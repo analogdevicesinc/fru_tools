@@ -614,7 +614,7 @@ struct FRU_DATA * parse_FRU (unsigned char *data)
 
 	/* Parse Chassis Info Area */
 	if (data[4]) {
-		printf_err("Chassis Info Area parsing not yet implemented - sorry\n");
+		printf_err("Product Info Area parsing not yet implemented - sorry\n");
 		goto err;
 	}
 
