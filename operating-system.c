@@ -100,22 +100,26 @@ unsigned char * read_file(char *file_name)
 	unsigned char *p;
 	size_t tmp;
 	int i = 0;
+	long size;
 
 	fp = fopen(file_name, "rb");
 	if(fp == NULL)
 		printf_err("Cannot open file '%s'\n", file_name);
 
-	p = x_calloc(1, 1024);
-	tmp = fread(p, 1024, 1, fp);
-	if (!feof(fp))
-		printf_err("Didn't read the entire input file (%s), it's too long\n", file_name);
+	fseek(fp, 0L, SEEK_END);
+	size = ftell(fp);
+	rewind(fp);
 
+	p = x_calloc(1, size);
+	tmp = fread(p, size + 1, 1, fp); /* + 1 to trigger the end of file */
+	if (!feof(fp))
+		printf_err("Didn't read the entire input file (%s)\n", file_name);
 	/*
 	 * If an error  occurs,  or the  end-of-file is reached, 
 	 * the return value is a short item count (or zero).
 	 */
 	if (tmp == 0)
-		for (i = 1023; p[i] == 0; i--);
+		for (i = size-1; p[i] == 0; i--);
 
 	printf_info("read %i bytes from %s\n", i+1, file_name);
 
