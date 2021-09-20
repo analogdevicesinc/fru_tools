@@ -572,17 +572,18 @@ struct MULTIRECORD_INFO * parse_multiboard_area(unsigned char *data)
 struct FRU_DATA * parse_FRU (unsigned char *data)
 {
 	struct FRU_DATA *fru;
+	struct FRU_COMMON_HEADER *header = (struct FRU_COMMON_HEADER *)data;
 
 	fru = x_calloc (1, sizeof(struct FRU_DATA));
 
 	/* Check FRU version */
-	if (data[0] != 0x01) {
+	if (header->format_ver != 0x01) {
 		printf_err("FRU Version number mismatch 0x%02x should be 0x01\n", data[0]);
 		goto err;
 	}
 
 	/* Check Padding */
-	if (data[6] != 0x00) {
+	if (header->pad != 0x00) {
 		printf_err("FRU byte 6 should be PAD, and be zero -- but it's not\n");
 		goto err;
 	}
@@ -594,32 +595,32 @@ struct FRU_DATA * parse_FRU (unsigned char *data)
 	}
 
 	/* Parse Internal Use Area */
-	if (data[1]) {
+	if (header->internal_offset) {
 		printf_err("Internal Use Area not yet implemented - sorry\n");
 		goto err;
 	}
 
 	/* Parse Chassis Info Area */
-	if (data[2]) {
+	if (header->chassis_offset) {
 		printf_err("Chassis Info Area not yet implmented - sorry\n");
 		goto err;
 	}
 
 	/* Parse Board Area */
-	if (data[3]) {
+	if (header->board_offset) {
 		fru->Board_Area = parse_board_area(&data[data[3] * 8]);
 		if (!fru->Board_Area)
 			goto err;
 	}
 
-	/* Parse Chassis Info Area */
-	if (data[4]) {
-		printf_err("Chassis Info Area parsing not yet implemented - sorry\n");
+	/* Parse Product Info Area */
+	if (header->product_offset) {
+		printf_err("Product Info Area parsing not yet implemented - sorry\n");
 		goto err;
 	}
 
 	/* Parse MultiRecord Area */
-	if (data[5])
+	if (header->multirecord_offset)
 		fru->MultiRecord_Area = parse_multiboard_area(&data[data[5] * 8]);
 
 	return fru;

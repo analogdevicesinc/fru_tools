@@ -76,6 +76,19 @@
 #define TYPE_CODE(x)  ((x[0] >> 6) & 0x3)
 #define FIELD_LEN(x)  (x[0] & 0x3F)
 
+/* Table 8-1, Common header */
+
+struct FRU_COMMON_HEADER {
+	unsigned char format_ver; 		/* Common Header Format Version */
+	unsigned char internal_offset;		/* Internal Use Area Starting. */
+	unsigned char chassis_offset;		/* Chassis Info Area Starting Offset */
+	unsigned char board_offset;		/* Board Area Starting Offset */
+	unsigned char product_offset;		/* Product Info Area Starting Offset */
+	unsigned char multirecord_offset;	/* MultiRecord Area Starting Offset */
+	unsigned char pad;			/* PAD */
+	unsigned char checksum;			/* Common Header Checksum */
+};
+
 struct BOARD_INFO {
 	unsigned char language_code;
 	unsigned int mfg_date;
