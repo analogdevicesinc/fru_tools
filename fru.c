@@ -257,33 +257,37 @@ int ascii2six(unsigned char **dest, unsigned char *src, size_t size)
 unsigned char * six2ascii(unsigned char *buf, size_t size)
 {
 	unsigned char *p, *dest;
-	size_t i;
+	size_t i, j;
 
 	if (!size)
 		return NULL;
 
 	dump_str(buf, size, 6);
 	/* the length of dest, should be 4/3 of size + 1 for null termination char*/
-	dest = x_calloc(1, ((size * 4) / 3) + 2);
+	j = ((size * 4) / 3) + 2;
+	dest = x_calloc(1, j);
 	p = dest;
 
+	/* we take 3 bytes of packed six-bit ASCII, and turn it into 4 bytes of ASCII
+	 * but, stop processing when we hit the end
+	 */
 	for (i = 0; i < size; i += 3) {
 		*dest = (buf[i] & 0x3F) + 0x20;
-		/* printf("1: %i: 0x%x (%c)\n", i, *dest, *dest); */
+		/* printf("1: %zu: 0x%x (%c)\n", i, *dest, *dest); */
 		dest++;
-		if ((i + 1) < size) {
+		if ((i + 1) <= size) {
 			*dest = ((buf[i] & 0xC0) >> 6 | (buf[i+1] & 0x0F) << 2) + 0x20;
-			/* printf("2: %i: 0x%x (%c)\n", i, *dest, *dest); */
+			/* printf("2: %zu: 0x%x (%c)\n", i, *dest, *dest); */
 			dest++;
 		}
-		if ((i + 2) < size) {
+		if ((i + 2) <= size) {
 			*dest = ((buf[i+1] & 0xF0) >> 4 | (buf[i+2] & 0x03) << 4) + 0x20;
-			/* printf("3: %i: 0x%x (%c)\n", i, *dest, *dest); */
+			/* printf("3: %zu: 0x%x (%c)\n", i, *dest, *dest); */
 			dest++;
 		}
-		if ((i + 3) < size) {
+		if ((i + 3) <= size) {
 			*dest = ((buf[i+2] & 0xFC) >> 2) + 0x20;
-			/* printf("4: %i: 0x%x (%c)\n", i, *dest, *dest); */
+			/* printf("4: %zu: 0x%x (%c)\n", i, *dest, *dest); */
 			dest++;
 		}
 	}
@@ -292,11 +296,13 @@ unsigned char * six2ascii(unsigned char *buf, size_t size)
 
 	/* Drop trailing spaces & null chars */
 	dest--;
-	while ((*dest == 0 || *dest == ' ') && size) {
+	while ((*dest == 0 || *dest == ' ') && j) {
 		*dest = 0;
 		dest--;
-		size--;
+		j--;
 	}
+
+	dump_str(p, j, 8);
 
 	return p;
 }
