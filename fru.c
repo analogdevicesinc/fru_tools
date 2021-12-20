@@ -56,7 +56,14 @@
 #define __bswap_32 OSSwapInt32
 #endif
 
+//#define DEBUG 1
 #include "fru.h"
+
+#if defined(DEBUG)
+# define printd(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#else
+# define printd(fmt, ...) do {} while (0)
+#endif
 
 /*
  * This code is based from:
@@ -134,9 +141,10 @@ static void dump_str(unsigned char * p, unsigned int size, unsigned int space)
 
 	t = p;
 	k = 8 - space;
+	printf("dump %i bytes as %i-bit\n\t\t", size, space);
 	for (i = 0; i < size; i++) {
 		m = 0;
-		printf("%02zi: %02x : ", i, *t);
+		printf("%02zi: 0x%02x : ", i, *t);
 		last = this;
 		this = *t;
 		for (shift = 0x80; shift > 0; shift >>= 1) {
@@ -151,9 +159,15 @@ static void dump_str(unsigned char * p, unsigned int size, unsigned int space)
 			}
 		}
 		if (space == 8) {
-			if (*t)
-				printf(" (%c) %02x", *t, *t - 0x20);
-			else
+			if (*t) {
+				if (*t > 0x20)
+					printf(" '%c' ", *t);
+				else
+					printf(" ' ' ");
+				printf("%i (0x%02x)", *t, *t );
+				if (*t > 0x20 && *t < 0x70)
+					printf(" | six-bit: %id (0x%02x)", (*t - 0x20) & 0xFF, (*t - 0x20) & 0xFF);
+			}else
 				printf(" (term) NULL");
 		}
 		if (space == 6) {
@@ -169,12 +183,12 @@ static void dump_str(unsigned char * p, unsigned int size, unsigned int space)
 			}
 
 			if (k == 4 || k == 6)
-				printf(" (%02x) %02x '%c'", x , x + 0x20, x + 0x20);
+				printf(" (0x%02x) 0x%02x '%c'", x , x + 0x20, x + 0x20);
 			if (k == 2)
-				printf(" (%02x) %02x '%c' | (%02x) %02x '%c'", x , x + 0x20, x + 0x20, y , y + 0x20, y + 0x20);
+				printf(" (0x%02x) 0x%02x '%c' | (%02x) %02x '%c'", x , x + 0x20, x + 0x20, y , y + 0x20, y + 0x20);
 		}
 		++t;
-		printf("\n");
+		printf("\n\t\t");
 	}
 }
 #else
@@ -221,19 +235,24 @@ int ascii2six(unsigned char **dest, unsigned char *src, size_t size)
 	*dest = x_calloc(1, size + 1);
 	p = *dest;
 
-	for (i = 0; i <= size ; i+= 4) {
+	printd("\t\t\t%s trying to encode %li bytes\n", __func__, size);
+	for (i = 0; i < size ; i+= 4) {
 		k = e[i];
+		/* printd("encoding byte %i '%x'\n", m, e[i]); */
 		m++;
 		if ((i + 1) < size) {
 			k |= e[i + 1] << 6;
+			/* printd("encoding byte %i '%x'\n", m, e[i+1]); */
 			m++;
 		}
 		if ((i + 2) < size) {
 			k |= e[i + 2] << 12;
+			/* printd("encoding byte %i '%x'\n", m, e[i+2]); */
 			m++;
 		}
 		if ((i + 3) < size) {
 			k |= e[i + 3] << 18;
+			/* printd("encoding byte %i '%x'\n", m, e[i+3]); */
 		}
 #ifndef __MINGW32__
 #if __BYTE_ORDER == __BIG_ENDIAN
@@ -247,6 +266,7 @@ int ascii2six(unsigned char **dest, unsigned char *src, size_t size)
 	/* dump_str(*dest, m, 6); */
 	free (e);
 
+	printd("\t\t\t%s : encoded, and returning %i bytes\n", __func__, m);
 	return  m;
 }
 
@@ -262,7 +282,7 @@ unsigned char * six2ascii(unsigned char *buf, size_t size)
 	if (!size)
 		return NULL;
 
-	dump_str(buf, size, 6);
+	printd("%s in: ", __func__); dump_str(buf, size, 6);
 	/* the length of dest, should be 4/3 of size + 1 for null termination char*/
 	j = ((size * 4) / 3) + 2;
 	dest = x_calloc(1, j);
@@ -273,21 +293,21 @@ unsigned char * six2ascii(unsigned char *buf, size_t size)
 	 */
 	for (i = 0; i < size; i += 3) {
 		*dest = (buf[i] & 0x3F) + 0x20;
-		/* printf("1: %zu: 0x%x (%c)\n", i, *dest, *dest); */
+		/* printd("\t\t%02zu (0): 0x%x (%c)\n", i, *dest, *dest); */
 		dest++;
-		if ((i + 1) <= size) {
+		if ((i + 1) < size) {
 			*dest = ((buf[i] & 0xC0) >> 6 | (buf[i+1] & 0x0F) << 2) + 0x20;
-			/* printf("2: %zu: 0x%x (%c)\n", i, *dest, *dest); */
+			/* printd("\t\t%02zu (1): 0x%x (%c)\n", i + 1, *dest, *dest); */
 			dest++;
 		}
-		if ((i + 2) <= size) {
+		if ((i + 2) < size) {
 			*dest = ((buf[i+1] & 0xF0) >> 4 | (buf[i+2] & 0x03) << 4) + 0x20;
-			/* printf("3: %zu: 0x%x (%c)\n", i, *dest, *dest); */
+			/* printd("\t\t%02zu (2): 0x%x (%c)\n", i + 2, *dest, *dest); */
 			dest++;
 		}
 		if ((i + 3) <= size) {
 			*dest = ((buf[i+2] & 0xFC) >> 2) + 0x20;
-			/* printf("4: %zu: 0x%x (%c)\n", i, *dest, *dest); */
+			/* printd("\t\t%02zu (3): 0x%x (%c)\n", i + 3, *dest, *dest); */
 			dest++;
 		}
 	}
@@ -300,9 +320,10 @@ unsigned char * six2ascii(unsigned char *buf, size_t size)
 		*dest = 0;
 		dest--;
 		j--;
+		printd("\tdrop a char\n");
 	}
 
-	dump_str(p, j, 8);
+	printd("\t%s out: ", __func__); dump_str(p, j, 8);
 
 	return p;
 }
@@ -312,7 +333,7 @@ unsigned char * six2ascii(unsigned char *buf, size_t size)
  * Section 13 TYPE/LENGTH BYTE FORMAT
  * Platform Management FRU Information Storage Definition
  */
-unsigned int parse_string(unsigned char *p, unsigned char **str, const char * field)
+unsigned int parse_string(unsigned char *p, unsigned char **str, const char * field, bool skip)
 {
 	size_t len, i, j;
 
@@ -338,17 +359,25 @@ unsigned int parse_string(unsigned char *p, unsigned char **str, const char * fi
 			/* 6-bit ASCII, packed */
 			{
 				unsigned char *tmp1, *tmp2;
-				size_t tlen;
+				size_t tlen, start = 1;
 
-				tmp1 = six2ascii(&p[1], p[0]& 0x3F);
-				/* printf("str: %s\n", foo); */
-				/* dump_str(foo, strlen(foo) + 1, 8); */
+				if (skip)
+					start++;
+				printd("%s skip:%i len:%i\n", __func__, skip, p[0] & 0x3F);
+				tmp1 = six2ascii(&p[start], skip ? (p[0] & 0x3F) - 1 : p[0]& 0x3F);
 				tlen = strlen((char *)tmp1);
 				*str = x_calloc(1, tlen + 2);
 
 				tmp2 = *str;
 				tmp2++;
+
+				if (skip) {
+					tmp2[0] = p[1];
+					tmp2++;
+				}
+
 				memcpy(tmp2, tmp1, tlen + 1);
+
 				if (tlen > 0x3F)
 					tlen = 0x3F;
 
@@ -423,24 +452,24 @@ struct BOARD_INFO * parse_board_area(unsigned char *data)
 	p = &data[6];
 	len -= 6;
 
-	i = parse_string(p, &fru->manufacturer, "Manufacturer");
+	i = parse_string(p, &fru->manufacturer, "Manufacturer", false);
 	p += i, len -= i;
 
-	i = parse_string(p, &fru->product_name, "Product Name");
+	i = parse_string(p, &fru->product_name, "Product Name", false);
 	p += i, len -= i;
 
-	i = parse_string(p, &fru->serial_number, "Serial Number");
+	i = parse_string(p, &fru->serial_number, "Serial Number", false);
 	p += i, len -= i;
 
-	i = parse_string(p, &fru->part_number, "Part Number");
+	i = parse_string(p, &fru->part_number, "Part Number", false);
 	p += i, len -= i;
 
-	i = parse_string(p, &fru->FRU_file_ID, "FRU File ID");
+	i = parse_string(p, &fru->FRU_file_ID, "FRU File ID", false);
 	p += i, len -= i;
 
 	j = 0;
 	while (len != 0 && j < CUSTOM_FIELDS) {
-		i = parse_string(p, &fru->custom[j], "Custom Field");
+		i = parse_string(p, &fru->custom[j], "Custom Field", true);
 		p += i, len -= i, j++;
 	}
 
@@ -665,17 +694,51 @@ void free_FRU(struct FRU_DATA *fru)
  * take string, and put in into the buffer
  * return the number of bytes copied
  */
-static unsigned int insert_str(unsigned char *buf, const unsigned char * str, bool force)
+static unsigned int insert_str(unsigned char *buf, const unsigned char * str, bool force, bool skip)
 {
-	int tmp;
+	int tmp, start = 1;
+	bool force_six = false;
 
-	if (TYPE_CODE(str) == FRU_STRING_ASCII)
-		tmp = strlen((const char *)&str[1]);
-	else
+	printd("%s ", __func__);
+	if (TYPE_CODE(str) == FRU_STRING_ASCII) {
+		if (skip)
+			start++;
+		tmp = strlen((const char *)&str[start]);
+		printd("ASCII (0x%x) ", TYPE_CODE(str));
+		dump_str((unsigned char*)&str[start], tmp + 1 , 8);
+	} else {
 		tmp = FIELD_LEN(str);
 
+		if (TYPE_CODE(str) == FRU_STRING_BINARY)
+			printd("binary (0x%x) ", TYPE_CODE(str));
+		else if (TYPE_CODE(str) == FRU_STRING_BCD)
+			printd("BCD (0x%x) ", TYPE_CODE(str));
+		else if (TYPE_CODE(str) == FRU_STRING_SIXBIT)
+			printd("Packed six bit (0x%x) ", TYPE_CODE(str));
+
+		dump_str((unsigned char*)str, tmp + 1 , 8);
+	}
+
+	/* check to see if iy can be packed */
+	if (tmp >= 4 && skip && force && TYPE_CODE(str) == FRU_STRING_BINARY) {
+		int j, i;
+		force_six = true;
+
+		for (i = start + 1; str[i] != '\0' && i <= tmp; i++) {
+			j = toupper(str[i]) - 0x20;
+			if (j < 0 || j >= 0x40) {
+				force_six = false;
+				break;
+			}
+		}
+		if (force_six) {
+			start++;
+			tmp = strlen((const char *)&str[start]);
+		}
+	}
+
 	/* Turn ASCII into 6 bit if possible */
-	if ((TYPE_CODE(str) != FRU_STRING_ASCII) || (tmp <= 0x3F && !force)) {
+	if ((!force_six && TYPE_CODE(str) != FRU_STRING_ASCII) || (tmp <= 0x3F && !force)) {
 		/* It fits, so just leave it as ASCII/binary/whatever format it's in */
 		buf[0] = tmp | (TYPE_CODE(str) << 6);
 		memcpy(&buf[1], &str[1], tmp);
@@ -683,10 +746,15 @@ static unsigned int insert_str(unsigned char *buf, const unsigned char * str, bo
 		/* turn it into 6-bit ASCII */
 		unsigned char *six = NULL;
 
-		/* printf("six in : 0x%x : len: %2d : %s\n", (str[0] >> 6) && 0x3, str[0] & 0x3F , &str[1]); */
-		/* dump_str((unsigned char*)&str[1], tmp + 1 , 8); */
-		tmp = ascii2six(&six, (unsigned char *)&str[1], tmp);
+		printd("\t%s six in : 0x%x : len: %2d : ", __func__, (str[0] >> 6) && 0x3, str[0] & 0x3F);
+		if (skip)
+			printd(" skipping byte : 0x%02x", str[1]);
+		printd(" %s\n" , &str[start]);
+
+		/* dump_str((unsigned char*)&str[start], tmp + 1 , 8); */
+		tmp = ascii2six(&six, (unsigned char *)&str[start], skip ? tmp : tmp);
 		if (tmp < 0) {
+			printd("error\n");
 			/* Counldn't encode things */
 			printf_warn("couldn't encode '%s' string\n", &str[1]);
 			tmp = strlen((const char *)&str[1]);
@@ -698,14 +766,20 @@ static unsigned int insert_str(unsigned char *buf, const unsigned char * str, bo
 			memcpy(&buf[1], &str[1], tmp);
 			return tmp + 1;
 		}
-		dump_str(six, tmp, 6);
-		if (tmp > 0x3F) {
+
+		printd("\t%s resulting encode : ", __func__); dump_str(six, tmp, 6);
+		if (tmp > 0x3F || (skip && tmp > 0x3E)) {
 			printf_warn("fail : %d\n", tmp);
 			printf_err("String too long to fit\n");
 		}
 
+		memcpy(&buf[start], six, tmp);
+
+		if (skip) {
+			buf[1] = str[1];
+			tmp++;
+		}
 		buf[0] = tmp | (FRU_STRING_SIXBIT << 6);
-		memcpy(&buf[1], six, tmp);
 		free(six);
 	}
 
@@ -732,6 +806,7 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 	if (fru->Chassis_Info)
 		printf_err("Chassis Info not yet implemented - sorry\n");
 
+	printd("len start %i\n", i);
 	if (fru->Board_Area) {
 		len = st = i;
 		buf[3] = i / 8;
@@ -743,26 +818,43 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 		buf[i+5] = (fru->Board_Area->mfg_date >> 16) & 0xFF;
 
 		i += 6;
-		i += insert_str(&buf[i], fru->Board_Area->manufacturer, packed);
-		i += insert_str(&buf[i], fru->Board_Area->product_name, packed);
-		i += insert_str(&buf[i], fru->Board_Area->serial_number, packed);
-		i += insert_str(&buf[i], fru->Board_Area->part_number, packed);
-		i += insert_str(&buf[i], fru->Board_Area->FRU_file_ID, packed);
+		printd("len : manufacture : %i\n", i);
+		i += insert_str(&buf[i], fru->Board_Area->manufacturer, packed, false);
+		printd("len : product_name : %i\n", i);
+		i += insert_str(&buf[i], fru->Board_Area->product_name, packed, false);
+		printd("len : serial : %i\n", i);
+		i += insert_str(&buf[i], fru->Board_Area->serial_number, packed, false);
+		printd("len : part : %i\n", i);
+		i += insert_str(&buf[i], fru->Board_Area->part_number, packed, false);
+		printd("len : File ID : %i\n", i);
+		i += insert_str(&buf[i], fru->Board_Area->FRU_file_ID, packed, false);
+		printd("len : custom : %i\n", i);
 		for (j = 0; j < CUSTOM_FIELDS; j++) {
 			if (fru->Board_Area->custom[j]) {
-				i += insert_str(&buf[i], fru->Board_Area->custom[j], packed);
+				i += insert_str(&buf[i], fru->Board_Area->custom[j], packed, true);
+				printd("custom field %i '%s' overall length: %i\n", j, fru->Board_Area->custom[j], i);
 			}
 		}
+		/* 0xC1 =  type/length byte encoded to indicate no more info fields */
 		buf[i] = 0xC1;
 		i++;
+		printd("len : before pad: %i\n", i);
+		/* header counts in multiples of 8 bytes
+		 * 00h - any remaining unused space
+		 */
 		i = (((i >> 3) + 1) << 3) - 1;
+		printd("len : after pad: %i\n", i);
 		len = i - st;
+		printd("len of board area = %i\n", len);
 		buf[st + 1] = len / 8 + 1;
 		buf[i] = 256 - calc_zero_checksum(&buf[st], len);
 		i++;
 	}
+
+	printd("len after board area: %i\n", i);
 	if (fru->Product_Info) {
 	}
+
 	if (fru->MultiRecord_Area) {
 		st = i;
 		buf[5] = st / 8;
@@ -826,6 +918,7 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 			buf[last + 3] = 0x100 - calc_zero_checksum(&buf[last - 1], 4);
 		}
 	}
+	printd("len after multi-record %i\n", i);
 	buf[7] = 256 - calc_zero_checksum(buf, 6);
 
 	*length = i;
