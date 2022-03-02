@@ -45,6 +45,8 @@
 
 int quiet = 0;
 int verbose = 0;
+unsigned int offset_out = 0;
+unsigned int offset_in = 0;
 
 void * x_calloc (size_t nmemb, size_t size)
 {
@@ -110,6 +112,10 @@ unsigned char * read_file(char *file_name)
 	size = ftell(fp);
 	rewind(fp);
 
+	
+	fseek(fp, offset_in, SEEK_SET);
+	size = size - offset_in;
+
 	p = x_calloc(1, size);
 	tmp = fread(p, size + 1, 1, fp); /* + 1 to trigger the end of file */
 	if (!feof(fp))
@@ -153,9 +159,11 @@ void write_FRU(struct FRU_DATA *fru, char * file_name, bool packed)
 		if (tmp != len)
 			printf_err ("Didn't write entire file\n");
 	} else {
-		if((fp = fopen(file_name, "wb")) == NULL)
+		if((fp = fopen(file_name, "r+b")) == NULL)
 			printf_err("Cannot open file.\n");
 
+		fseek(fp, offset_out, SEEK_SET);
+		
 		fwrite(buf, 1, len, fp);
 		fclose(fp);
 	}
@@ -401,7 +409,9 @@ void usage (void)
 	printf("dump information about FRU files for FMC Cards\n"
 		"  file options\n"
 		"    -i\tinput file\n"
-		"    -o\toutput file, only makes sense when changing something\n");
+		"    -o\toutput file, only makes sense when changing something\n"
+		"	 -I\tinput file offset"
+		"	 -O\toutput file offset");
 	printf("  dump info\n"
 		"    -b\tdump board info\n"
 		"    -c\tdump connector info\n"
@@ -435,7 +445,7 @@ int main(int argc, char **argv)
 	bool output_required = false;
 
 	opterr = 0;
-	while ((c = getopt (argc, argv, "26bcpv?d:h:s:t:i:o:")) != -1)
+	while ((c = getopt (argc, argv, "26bcpv?d:h:s:t:i:o:O:I:")) != -1)
 	switch (c) {
 		case 'b':
 			dump |= DUMP_BOARD;
@@ -496,6 +506,12 @@ int main(int argc, char **argv)
 		case 's':
 			output_required = true;
 			serial = optarg;
+			break;
+		case 'O':
+			offset_out = atoi(optarg);
+			break;
+		case 'I':
+			offset_in = atoi(optarg);
 			break;
 		case 't':
 			output_required = true;
