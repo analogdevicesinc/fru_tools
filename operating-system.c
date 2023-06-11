@@ -42,6 +42,7 @@
 #define DUMP_SUPPLY    (0x02)
 #define DUMP_CONNECTOR (0x04)
 #define DUMP_I2C       (0x08)
+#define DUMP_INTERNAL  (0x10)
 
 int quiet = 0;
 int verbose = 0;
@@ -391,6 +392,22 @@ void dump_FMConnector (struct MULTIRECORD_INFO *fru)
 
 }
 
+void dump_INTERNAL (struct INTERNAL_USE *fru)
+{
+	int i, len;
+
+	if (!fru->data) {
+		printf("No Internal use data\n");
+		return;
+	}
+
+	len = fru->data[0];
+
+	printf("Internal use\t: ");
+	for(i = 1; i <= len; i++)
+		printf("%02x%s", fru->data[i], (i == len) ? "\n" : ":");
+}
+
 void usage (void)
 {
 	printf("fru_dump %s, built %s\n", VERSION, VERSION_DATE);
@@ -406,6 +423,7 @@ void usage (void)
 		"    -b\tdump board info\n"
 		"    -c\tdump connector info\n"
 		"    -p\tdump power supply info\n"
+		"    -u\tdump internal use area info\n"
 		"    -2\tdump I2C info\n"
 		"    -v\tverbose (show warnings)\n");
 	printf("  set info (modifies output file)\n"
@@ -416,6 +434,7 @@ void usage (void)
 		"    -d now\tset the date to the current time\n"
 		"    -s <str>\tset serial number (string)\n"
 		"    -t <str>\tset tuning parameters\n"
+		"    -m <str>\tset serial number (string)\n"
 		"    -6\t\tforce output to be in 6-bit ASCII\n"
 	);
 }
@@ -425,6 +444,11 @@ int main(int argc, char **argv)
 	char *input_file = NULL, *p = NULL;
 	char *serial = NULL;
 	char *tuning = NULL;
+	char *internal = NULL;
+	char *nptr = NULL;
+	char *endptr = NULL;
+	long val;
+	int i;
 	char *output_file = NULL;
 	unsigned int date = 0;
 	int c;
@@ -435,7 +459,7 @@ int main(int argc, char **argv)
 	bool output_required = false;
 
 	opterr = 0;
-	while ((c = getopt (argc, argv, "26bcpv?d:h:s:t:i:o:")) != -1)
+	while ((c = getopt (argc, argv, "26bcpuv?d:h:s:t:m:i:o:")) != -1)
 	switch (c) {
 		case 'b':
 			dump |= DUMP_BOARD;
@@ -485,6 +509,9 @@ int main(int argc, char **argv)
 		case 'p':
 			dump |= DUMP_SUPPLY;
 			break;
+		case 'u':
+			dump |= DUMP_INTERNAL;
+			break;
 		case 'v':
 			verbose = 1;
 			break;
@@ -500,6 +527,10 @@ int main(int argc, char **argv)
 		case 't':
 			output_required = true;
 			tuning = optarg;
+			break;
+		case 'm':
+			output_required = true;
+			internal = optarg;
 			break;
 		case 'i':
 			input_file = optarg;
@@ -547,6 +578,25 @@ int main(int argc, char **argv)
 		printf_info("changing tuning parameter to '%s'\n", tuning, strlen(tuning));
 	}
 
+	if (internal) {
+		i = 1;
+	        nptr = internal;
+		val = strtol(nptr, &endptr, 16);
+		while (nptr != endptr) {
+			fru->Internal_Area->data[i] = val;
+			i++;
+			if (*endptr == '\0')
+				break;
+			else {
+				nptr = endptr + 1;
+				val = strtol(nptr, &endptr, 16);
+			}
+		}
+		fru->Internal_Area->data[0] = i - 1;
+
+		printf_info("changing internal use area data to %s\n", internal);
+	}
+
 	if (date) {
 		time_t tmp;
 		tmp = min2date(date);
@@ -565,6 +615,9 @@ int main(int argc, char **argv)
 
 	if (fru && dump & DUMP_I2C)
 		dump_i2c(fru->MultiRecord_Area);
+
+	if (fru && dump & DUMP_INTERNAL)
+		dump_INTERNAL(fru->Internal_Area);
 
 	if (output_file)
 		write_FRU(fru, output_file, force_packing);

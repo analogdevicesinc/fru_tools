@@ -410,6 +410,51 @@ unsigned int parse_string(unsigned char *p, unsigned char **str, const char * fi
 }
 
 /*
+ * Internal Use Area Format
+ * Platform Management FRU Information Storage Definition: Section 9
+ */
+struct INTERNAL_USE * parse_internal_use_area(unsigned char *data)
+{
+	struct INTERNAL_USE *fru;
+	unsigned int len;
+
+	fru = x_calloc(1, sizeof(struct INTERNAL_USE));
+
+	fru->format_ver = data[0];
+
+	if (fru->format_ver != 0x01) {
+		printf_err("Internal Use Format Version mismatch: 0x%02x should be 0x01\n", data[0]);
+		goto err;
+	}
+
+	len = data[1] * 8 - 1;
+
+	if (calc_zero_checksum(data, len)) {
+		printf_err("Internal Use Format Checksum failed\n");
+		goto err;
+	}
+
+	len--;
+	while ((data[len] == 0x00) && (len != 0))
+		len--;
+	if (len == 0 || data[len] != 0xC1) {
+		printf("Internal Use not terminated properly, walking backwards len: "
+				"%i:0x%02x should be 0xC1\n", len, data[len]);
+		goto err;
+	};
+
+	fru->data = x_calloc(1, len - 2);
+
+	memcpy(fru->data, &data[2], len - 2);
+
+	return fru;
+err:
+	free(fru);
+
+	return NULL;
+}
+
+/*
  * Board Info Area Format
  * Platform Management FRU Information Storage Definition: Section 11
  */
@@ -631,8 +676,9 @@ struct FRU_DATA * parse_FRU (unsigned char *data)
 
 	/* Parse Internal Use Area */
 	if (header->internal_offset) {
-		printf_err("Internal Use Area not yet implemented - sorry\n");
-		goto err;
+		fru->Internal_Area = parse_internal_use_area(&data[data[1] * 8]);
+		if (!fru->Internal_Area)
+			goto err;
 	}
 
 	/* Parse Chassis Info Area */
@@ -800,8 +846,29 @@ unsigned char * build_FRU_blob (struct FRU_DATA *fru, size_t *length, bool packe
 
 	buf[0] = 0x01;
 	i = 8;
-	if (fru->Internal_Area)
-		printf_err("Internal Use Area not yet implemented - sorry\n");
+	if (fru->Internal_Area) {
+		st = i;
+		buf[1] = 1;
+		buf[i] = 0x1;   /* Magic number */
+		/* buf[i+1] = length, which needs to be determined later */
+		buf[i+2] = fru->Internal_Area->data[0];
+		memcpy(&buf[i+3], &fru->Internal_Area->data[1], buf[i+2]);
+		i += 3 + buf[i+2];
+		/* 0xC1 =  type/length byte encoded to indicate no more info fields */
+		buf[i] = 0xC1;
+		i++;
+		printd("len : before pad: %i\n", i);
+		/* header counts in multiples of 8 bytes
+		 * 00h - any remaining unused space
+		 */
+		i = (((i >> 3) + 1) << 3) - 1;
+		printd("len : after pad: %i\n", i);
+		len = i - st;
+		printd("len of internal use area = %i\n", len);
+		buf[st + 1] = len / 8 + 1;
+		buf[i] = 256 - calc_zero_checksum(&buf[st], len);
+		i++;
+	}
 
 	if (fru->Chassis_Info)
 		printf_err("Chassis Info not yet implemented - sorry\n");

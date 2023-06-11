@@ -89,6 +89,11 @@ struct FRU_COMMON_HEADER {
 	unsigned char checksum;			/* Common Header Checksum */
 };
 
+struct INTERNAL_USE  {
+	unsigned char format_ver;		/* Internal Use Format Version */
+	unsigned char *data;			/* Internal Use Data */
+};
+
 struct BOARD_INFO {
 	unsigned char language_code;
 	unsigned int mfg_date;
@@ -120,7 +125,7 @@ struct MULTIRECORD_INFO {
 #define VITA_OUI 0x0012A2
 
 struct FRU_DATA {
-	char *Internal_Area;
+	struct INTERNAL_USE *Internal_Area;
 	char *Chassis_Info;
 	struct BOARD_INFO *Board_Area;
 	char *Product_Info;
