@@ -679,15 +679,16 @@ void free_FRU(struct FRU_DATA *fru)
 		free(fru->Board_Area->custom[j]);
 	free(fru->Board_Area);
 
-	for(j = 0; j < NUM_SUPPLIES; j++)
-		free(fru->MultiRecord_Area->supplies[j]);
-	free(fru->MultiRecord_Area->i2c_devices);
+	if (fru->MultiRecord_Area != NULL) {
+		for(j = 0; j < NUM_SUPPLIES; j++)
+			free(fru->MultiRecord_Area->supplies[j]);
+		free(fru->MultiRecord_Area->i2c_devices);
 
-	free(fru->MultiRecord_Area->connector);
-	free(fru->MultiRecord_Area);
+		free(fru->MultiRecord_Area->connector);
+		free(fru->MultiRecord_Area);
+	}
 
 	free(fru);
-
 }
 
 /*
