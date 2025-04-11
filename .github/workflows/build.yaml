@@ -1,0 +1,32 @@
+name: FRU TOOLS Build
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Build FRU TOOLS
+        run: |
+          make
+      - name: Install FRU TOOLS
+        run: |
+          sudo make install
+      - name: Test FRU TOOLS
+        run: |
+          fru-dump --version
+      - name: Archive build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fru_tools-artifact
+          path: fru-dump
