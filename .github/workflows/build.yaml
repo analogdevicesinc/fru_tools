@@ -1,0 +1,45 @@
+name: FRU TOOLS Build
+
+on:
+  push:
+    branches:
+      - main
+      - next_stable
+      - '20[1-9][0-9]_R[1-9]'
+  pull_request:
+    branches:
+      - main
+      - next_stable
+      - '20[1-9][0-9]_R[1-9]'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Prepare env
+        run: |
+          sudo apt-get install valgrind
+      - name: Build FRU TOOLS
+        run: |
+          make
+      - name: Install FRU TOOLS
+        run: |
+          sudo make install
+
+          # check fru-dump installation
+          [ `which fru-dump` ] && echo "fru-dump installed successfully!" || { echo "fru-dump failed to install!"; exit 1; }
+
+          # check binaries for fru-dump exists (fru-dump.1 and masterfiles)
+          [ -d /usr/local/lib/fmc-tools ] && [ `ls -l /usr/local/lib/fmc-tools | wc -l` -eq `ls -l masterfiles/ | wc -l` ] && echo "fmc-tools binaries installed successfully!" || { echo "fmc-tools binaries failed to install!"; exit 1; }
+          [ -f /usr/local/share/man/man1/fru-dump.1 ] && echo "fru-dump.1 installed successfully!" || { echo "fru-dump.1 failed to install!"; exit 1; }
+      - name: Test FRU TOOLS
+        continue-on-error: true
+        run: |
+          make test
+      - name: Archive build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fru_tools-artifact
+          path: fru-dump
