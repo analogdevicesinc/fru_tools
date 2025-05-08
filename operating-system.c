@@ -416,6 +416,7 @@ void usage (void)
 		"    -d now\tset the date to the current time\n"
 		"    -s <str>\tset serial number (string)\n"
 		"    -t <str>\tset tuning parameters\n"
+		"    -r <str>\tset pcb revision\n"
 		"    -6\t\tforce output to be in 6-bit ASCII\n"
 	);
 }
@@ -425,6 +426,7 @@ int main(int argc, char **argv)
 	char *input_file = NULL, *p = NULL;
 	char *serial = NULL;
 	char *tuning = NULL;
+	char *pcb_rev = NULL;
 	char *output_file = NULL;
 	unsigned int date = 0;
 	int c;
@@ -435,7 +437,7 @@ int main(int argc, char **argv)
 	bool output_required = false;
 
 	opterr = 0;
-	while ((c = getopt (argc, argv, "26bcpv?d:h:s:t:i:o:")) != -1)
+	while ((c = getopt (argc, argv, "26bcpv?d:h:s:t:r:i:o:")) != -1)
 	switch (c) {
 		case 'b':
 			dump |= DUMP_BOARD;
@@ -501,6 +503,10 @@ int main(int argc, char **argv)
 			output_required = true;
 			tuning = optarg;
 			break;
+		case 'r':
+			output_required = true;
+			pcb_rev = optarg;
+			break;
 		case 'i':
 			input_file = optarg;
 			break;
@@ -552,6 +558,14 @@ int main(int argc, char **argv)
 		tmp = min2date(date);
 		fru->Board_Area->mfg_date = date;
 		printf_info("changing date to %s", ctime(&tmp));
+	}
+
+	if (pcb_rev) {
+		fru->Board_Area->custom[0] = x_calloc(1, strlen(pcb_rev)+3);
+		fru->Board_Area->custom[0][0] = (strlen(pcb_rev) + 1) | (FRU_STRING_BINARY << 6);
+		fru->Board_Area->custom[0][1] = 0; //custom field index
+		memcpy(&fru->Board_Area->custom[0][2], pcb_rev, strlen(pcb_rev));
+		printf_info("changing pcb_rev to '%s'\n", pcb_rev, strlen(pcb_rev));
 	}
 
 	if (fru && dump & DUMP_BOARD)
