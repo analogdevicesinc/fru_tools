@@ -1,8 +1,8 @@
 PREFIX ?= /usr/local
 
 BUILD_NUMBER_FILE = .version
-DESTDIR=$(PREFIX)
-PLIB=$(DESTDIR)/lib/fmc-tools
+DESTDIR=
+PLIB=$(DESTDIR)$(PREFIX)/lib/fmc-tools
 
 VERSION = 0
 PATCHLEVEL = 8
@@ -50,12 +50,12 @@ test: ALL
 	valgrind --leak-check=full ./fru-dump -p -v ./foo2.bar
 
 install:
-	install -d $(DESTDIR)/bin
-	install ./fru-dump $(DESTDIR)/bin/
+	install -d $(DESTDIR)$(PREFIX)//bin
+	install ./fru-dump $(DESTDIR)$(PREFIX)/bin/
 	install -d $(PLIB)
 	install ./masterfiles/* $(PLIB)
-	install -d $(DESTDIR)/share/man/man1
-	install ./fru-dump.1 $(DESTDIR)/share/man/man1/
+	install -d $(DESTDIR)$(PREFIX)/share/man/man1
+	install ./fru-dump.1 $(DESTDIR)$(PREFIX)/share/man/man1/
 
 clean:
 	rm -f fru-dump fru-dump.exe fru-tools-*_installer.exe *.o
