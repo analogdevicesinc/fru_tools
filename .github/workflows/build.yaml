@@ -74,75 +74,29 @@ jobs:
         echo "version=$app_version" >> "$GITHUB_OUTPUT"
         echo "can_create_release=$create_release" >> "$GITHUB_OUTPUT"
 
-  build_arm64_native:
+  build_arm_native:
     runs-on: ubuntu-24.04-arm
     needs: identify_version
-    env:
-      architecture: arm64
     strategy:
       fail-fast: false
       matrix:
         include:
           - docker_image: aandrisa/kuiper_basic_64:latest
             distro: kuiper
+            architecture: arm64
+            platform_flag: ""
           - docker_image: arm64v8/debian:trixie
             distro: debian13
-
-    steps:
-    - name: Checkout code repository
-      uses: actions/checkout@v4
-      with:
-        path: ${{env.APP_NAME}}
-
-    - name: Start persistent container
-      run: |
-        docker run -d \
-            --name ${{matrix.distro}}-${{env.architecture}} \
-            -v "$GITHUB_WORKSPACE/${{env.APP_NAME}}:/workspace/${{env.APP_NAME}}" \
-            -w /workspace/${{env.APP_NAME}} \
-            ${{matrix.docker_image}} tail -f /dev/null
-
-    - name: Create debian package
-      run: |
-        docker exec ${{matrix.distro}}-${{env.architecture}} sh -c ".github/scripts/create_debian.sh ${{needs.identify_version.outputs.app-version}}"
-
-    - name: Install application
-      run: |
-        docker exec ${{matrix.distro}}-${{env.architecture}} sh -c "dpkg -i ../${{env.APP_NAME}}_${{needs.identify_version.outputs.app-version}}-1_${{env.architecture}}.deb"
-
-    - name: Verify install locations
-      run: |
-        docker exec ${{matrix.distro}}-${{env.architecture}} sh -c ".github/scripts/verify_install.sh"
-
-    - name: Copy debian artifacts from container to host
-      run: |
-        docker cp ${{matrix.distro}}-${{env.architecture}}:/workspace/. ./artifacts/
-        ls -la ./artifacts/
-
-    - name: Upload debian artifacts to github
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{env.APP_NAME}}-${{matrix.distro}}-${{env.architecture}}
-        path: |
-          artifacts/*.deb
-          artifacts/*.dsc
-          artifacts/*.debian.tar.xz
-          artifacts/*.orig.tar.gz
-        if-no-files-found: error
-
-  build_armhf_native:
-    runs-on: ubuntu-24.04-arm
-    needs: identify_version
-    env:
-      architecture: armhf
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
+            architecture: arm64
+            platform_flag: ""
           - docker_image: aandrisa/kuiper_basic_32:latest
             distro: kuiper
+            architecture: armhf
+            platform_flag: "--platform linux/arm/v7"
           - docker_image: arm32v7/debian:trixie
             distro: debian13
+            architecture: armhf
+            platform_flag: "--platform linux/arm/v7"
 
     steps:
     - name: Checkout code repository
@@ -153,33 +107,33 @@ jobs:
     - name: Start persistent container
       run: |
         docker run -d \
-            --platform linux/arm/v7 \
-            --name ${{matrix.distro}}-${{env.architecture}} \
+            ${{matrix.platform_flag}} \
+            --name ${{matrix.distro}}-${{matrix.architecture}} \
             -v "$GITHUB_WORKSPACE/${{env.APP_NAME}}:/workspace/${{env.APP_NAME}}" \
             -w /workspace/${{env.APP_NAME}} \
             ${{matrix.docker_image}} tail -f /dev/null
 
     - name: Create debian package
       run: |
-        docker exec ${{matrix.distro}}-${{env.architecture}} sh -c ".github/scripts/create_debian.sh ${{needs.identify_version.outputs.app-version}}"
+        docker exec ${{matrix.distro}}-${{matrix.architecture}} sh -c ".github/scripts/create_debian.sh ${{needs.identify_version.outputs.app-version}}"
 
     - name: Install application
       run: |
-        docker exec ${{matrix.distro}}-${{env.architecture}} sh -c "dpkg -i ../${{env.APP_NAME}}_${{needs.identify_version.outputs.app-version}}-1_${{env.architecture}}.deb"
+        docker exec ${{matrix.distro}}-${{matrix.architecture}} sh -c "dpkg -i ../${{env.APP_NAME}}_${{needs.identify_version.outputs.app-version}}-1_${{matrix.architecture}}.deb"
 
     - name: Verify install locations
       run: |
-        docker exec ${{matrix.distro}}-${{env.architecture}} sh -c ".github/scripts/verify_install.sh"
+        docker exec ${{matrix.distro}}-${{matrix.architecture}} sh -c ".github/scripts/verify_install.sh"
 
     - name: Copy debian artifacts from container to host
       run: |
-        docker cp ${{matrix.distro}}-${{env.architecture}}:/workspace/. ./artifacts/
+        docker cp ${{matrix.distro}}-${{matrix.architecture}}:/workspace/. ./artifacts/
         ls -la ./artifacts/
 
     - name: Upload debian artifacts to github
       uses: actions/upload-artifact@v4
       with:
-        name: ${{env.APP_NAME}}-${{matrix.distro}}-${{env.architecture}}
+        name: ${{env.APP_NAME}}-${{matrix.distro}}-${{matrix.architecture}}
         path: |
           artifacts/*.deb
           artifacts/*.dsc
@@ -232,8 +186,7 @@ jobs:
 
   create_release_from_tag:
     needs:
-      - build_arm64_native
-      - build_armhf_native
+      - build_arm_native
       - build_ubuntu
       - identify_version
     runs-on: ubuntu-latest
