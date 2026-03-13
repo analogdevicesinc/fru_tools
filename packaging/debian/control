@@ -8,7 +8,7 @@ Homepage: https://github.com/analogdevicesinc/fru_tools
 Rules-Requires-Root: no
 
 Package: fru-tools
-Architecture: @ARCHITECTURE@
+Architecture: any
 Multi-Arch: foreign
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: Tools to display/manipulate FMC FRU info
