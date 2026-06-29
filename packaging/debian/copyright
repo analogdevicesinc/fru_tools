@@ -6,28 +6,39 @@ Source: https://github.com/analogdevicesinc/fru_tools
 # Please double check copyright with the licensecheck(1) command.
 
 Files:     *
-Copyright: 2012-2013 Analog Devices, Inc.
-License:   GPL-2
+Copyright: 2012-2015 Analog Devices, Inc.
+License:   GPL-3+
 
 Files:     operating-system.c
 Copyright: 2012-2015 Analog Devices
-License:   GPL-2
+License:   GPL-3+
 
-Files:     fru.h
+Files:     fru.c fru.h
 Copyright: 2012-2015 Analog Devices
 License:   ADIBSD
 
 
-License: GPL-2
- Comment: This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; version 2.
+License: GPL-3+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+ .
+ This program is distributed in the hope that it will be useful, but
+ WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ General Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <https://www.gnu.org/licenses/>.
  .
  On Debian systems, the complete text of the GNU General Public License
- version 2 can be found in "/usr/share/common-licenses/GPL-2".
+ version 3 can be found in "/usr/share/common-licenses/GPL-3".
 
 License: ADIBSD
  Comment: This file is maintained as part of:
    https://github.com/analogdevicesinc/fru_tools
- but is released under this license, so you can use it without having 
+ but is released under this license, so you can use it without having
  your software fall under the GPL. If you make improvements to this,
  although you are not required, it would be nice if you sent me a patch.
  Redistribution and use in source and binary forms, with or without
@@ -57,5 +68,3 @@ License: ADIBSD
  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
-
-
