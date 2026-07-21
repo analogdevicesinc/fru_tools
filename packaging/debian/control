@@ -1,7 +1,7 @@
 Source: fru-tools
 Section: devel
 Priority: optional
-Maintainer: Engineerzone <https://ez.analog.com/sw-interface-tools>
+Maintainer: EngineerZone <https://ez.analog.com/sw-interface-tools/>
 Build-Depends: debhelper-compat (= 13)
 Standards-Version: 4.5.1
 Homepage: https://github.com/analogdevicesinc/fru_tools
