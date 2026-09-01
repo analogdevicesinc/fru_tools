@@ -1,0 +1,169 @@
+name: Build debian packages with shared action
+
+permissions:
+  contents: read
+
+env:
+  APP_NAME: fru-tools
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  identify_version:
+    runs-on: ubuntu-latest
+    outputs:
+      app-version: ${{ steps.set_version.outputs.version }}
+    steps:
+    - name: Set app version
+      id: set_version
+      run: |
+        # Derive the version from the highest git tag, not GitHub Releases:
+        # tags such as v0.9.0 are often never promoted to a Release, so
+        # releases/latest would miss them and fall back to the default. Accept
+        # tags with 2+ numeric components (covers the repo's 4-part tags like
+        # v0.8.1.7) and pick the highest with `sort -V`. The `|| true` keeps
+        # the step alive under `set -o pipefail` when grep matches nothing.
+        latest_tag=$(curl -sS "https://api.github.com/repos/${{github.repository}}/tags?per_page=100" \
+            | jq -r '.[].name' \
+            | grep -E '^v?[0-9]+(\.[0-9]+)+$' \
+            | sort -V \
+            | tail -1) || true
+
+        if [[ -n "$latest_tag" ]]; then
+            app_version="${latest_tag#v}+${{github.sha}}"
+        else
+            echo "No version tag found. Setting default version"
+            app_version="0.0.1+${{github.sha}}"
+        fi
+
+        echo "Version to use $app_version"
+        echo "version=$app_version" >> "$GITHUB_OUTPUT"
+
+  # amd64 builds natively on the host runner via the composite action.
+  build_amd64:
+    runs-on: ubuntu-latest
+    needs: identify_version
+    steps:
+    - name: Checkout code repository
+      uses: actions/checkout@v6
+      with:
+        path: ${{env.APP_NAME}}
+
+    - name: Create debian package
+      id: build_deb
+      uses: analogdevicesinc/shared-actions/deb-generator-action@main
+      with:
+        version: ${{needs.identify_version.outputs.app-version}}
+        working-directory: ${{env.APP_NAME}}
+        ignore-path: |
+          packaging
+
+    - name: Install application
+      run: |
+        sudo dpkg -i "${{steps.build_deb.outputs.artifact-dir}}"/*.deb
+
+    - name: Verify install locations
+      working-directory: ${{env.APP_NAME}}
+      run: |
+        .github/scripts/verify_install.sh
+
+    - name: Upload debian artifacts to github
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{env.APP_NAME}}-ubuntu
+        path: |
+          ${{steps.build_deb.outputs.artifact-dir}}/*.deb
+          ${{steps.build_deb.outputs.artifact-dir}}/*.dsc
+          ${{steps.build_deb.outputs.artifact-dir}}/*.debian.tar.xz
+          ${{steps.build_deb.outputs.artifact-dir}}/*.orig.tar.gz
+        if-no-files-found: error
+
+  # arm64/armhf build inside kuiper and debian trixie containers on the arm
+  # runner, matching build.yaml's distro/arch coverage. The composite action
+  # runs on the host only, so for cross-arch we invoke its build-deb.sh directly
+  # in the container, as the action's README prescribes. armhf (linux/arm/v7)
+  # runs natively on the aarch64 runner, so no qemu is needed. The kuiper images
+  # are pulled anonymously from Cloudsmith (adi/containers is public).
+  build_arm:
+    runs-on: ubuntu-24.04-arm
+    needs: identify_version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: docker.cloudsmith.io/adi/containers/kuiper_basic_64:latest
+            distro: kuiper
+            architecture: arm64
+            platform_flag: ""
+          - image: arm64v8/debian:trixie
+            distro: debian13
+            architecture: arm64
+            platform_flag: ""
+          - image: docker.cloudsmith.io/adi/containers/kuiper_basic_32:latest
+            distro: kuiper
+            architecture: armhf
+            platform_flag: "--platform linux/arm/v7"
+          - image: arm32v7/debian:trixie
+            distro: debian13
+            architecture: armhf
+            platform_flag: "--platform linux/arm/v7"
+
+    steps:
+    - name: Checkout code repository
+      uses: actions/checkout@v6
+      with:
+        path: ${{env.APP_NAME}}
+
+    - name: Checkout shared-actions
+      uses: actions/checkout@v6
+      with:
+        repository: analogdevicesinc/shared-actions
+        path: shared-actions
+
+    - name: Start persistent container
+      run: |
+        docker run -d ${{matrix.platform_flag}} \
+            --name builder \
+            -v "$GITHUB_WORKSPACE:/work" \
+            -w /work \
+            -e GITHUB_WORKSPACE=/work \
+            ${{matrix.image}} tail -f /dev/null
+
+    - name: Install container prerequisites
+      run: |
+        # build-deb.sh curls the ADI package feed, so curl and TLS roots must
+        # exist in the base image before the script runs (harmless no-op where
+        # the kuiper image already ships them).
+        docker exec builder sh -c "apt-get update -qq && apt-get install -y -qq curl ca-certificates"
+
+    - name: Create debian package
+      run: |
+        docker exec \
+            -e VERSION="${{needs.identify_version.outputs.app-version}}" \
+            -e WORKING_DIRECTORY="/work/${{env.APP_NAME}}" \
+            -e GITHUB_WORKSPACE="/work" \
+            -e IGNORE_PATH="packaging" \
+            builder bash /work/shared-actions/deb-generator-action/build-deb.sh
+
+    - name: Install application
+      run: |
+        docker exec builder sh -c "dpkg -i /work/artifacts/*.deb"
+
+    - name: Verify install locations
+      run: |
+        docker exec -w /work/${{env.APP_NAME}} builder bash .github/scripts/verify_install.sh
+
+    - name: Upload debian artifacts to github
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{env.APP_NAME}}-${{matrix.distro}}-${{matrix.architecture}}
+        path: |
+          artifacts/*.deb
+          artifacts/*.dsc
+          artifacts/*.debian.tar.xz
+          artifacts/*.orig.tar.gz
+        if-no-files-found: error
