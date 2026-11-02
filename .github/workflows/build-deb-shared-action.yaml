@@ -85,25 +85,38 @@ jobs:
           ${{steps.build_deb.outputs.artifact-dir}}/*.orig.tar.gz
         if-no-files-found: error
 
-  # arm64/armhf build inside kuiper and debian trixie containers on the arm
-  # runner, matching build.yaml's distro/arch coverage. The composite action
-  # runs on the host only, so for cross-arch we invoke its build-deb.sh directly
-  # in the container, as the action's README prescribes. armhf (linux/arm/v7)
-  # runs natively on the aarch64 runner, so no qemu is needed. The kuiper images
-  # are pulled anonymously from Cloudsmith (adi/containers is public).
+  # arm64/armhf build inside kuiper container images on the arm runner, with
+  # one matrix row per distro/arch label (see the matrix below). The composite
+  # action runs on the host only, so for cross-arch we invoke its build-deb.sh
+  # directly in the container, as the action's README prescribes. armhf
+  # (linux/arm/v7) runs natively on the aarch64 runner, so no qemu is needed.
+  # The kuiper images are pulled anonymously from Cloudsmith (adi/containers is
+  # public).
   build_arm:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ${{matrix.runner}}
     needs: identify_version
     strategy:
       fail-fast: false
       matrix:
         include:
-          - image: docker.cloudsmith.io/adi/containers/kuiper_basic_64:latest
+          - runner: ubuntu-24.04-arm
+            docker_image: docker.cloudsmith.io/adi/containers/kuiper_basic_64:latest
             distro: kuiper
             architecture: arm64
             platform_flag: ""
-          - image: docker.cloudsmith.io/adi/containers/kuiper_basic_32:latest
+          - runner: ubuntu-24.04-arm
+            docker_image: docker.cloudsmith.io/adi/containers/kuiper_basic_32:latest
             distro: kuiper
+            architecture: armhf
+            platform_flag: "--platform linux/arm/v7"
+          - runner: ubuntu-24.04-arm
+            docker_image: docker.cloudsmith.io/adi/containers/kuiper_basic_64:latest
+            distro: debian
+            architecture: arm64
+            platform_flag: ""
+          - runner: ubuntu-24.04-arm
+            docker_image: docker.cloudsmith.io/adi/containers/kuiper_basic_32:latest
+            distro: debian
             architecture: armhf
             platform_flag: "--platform linux/arm/v7"
 
@@ -126,7 +139,7 @@ jobs:
             -v "$GITHUB_WORKSPACE:/work" \
             -w /work \
             -e GITHUB_WORKSPACE=/work \
-            ${{matrix.image}} tail -f /dev/null
+            ${{matrix.docker_image}} tail -f /dev/null
 
     - name: Install container prerequisites
       run: |
