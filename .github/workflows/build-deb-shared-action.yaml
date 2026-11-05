@@ -48,7 +48,7 @@ jobs:
 
   # amd64 builds natively on the host runner via the composite action.
   build_amd64:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: identify_version
     steps:
     - name: Checkout code repository
@@ -85,14 +85,14 @@ jobs:
           ${{steps.build_deb.outputs.artifact-dir}}/*.orig.tar.gz
         if-no-files-found: error
 
-  # arm64/armhf build inside kuiper container images on the arm runner, with
-  # one matrix row per distro/arch label (see the matrix below). The composite
+  # Container builds (kuiper/debian arm64/armhf on the arm runner, ubuntu 26.04
+  # amd64 on the x86 runner), one matrix row per distro/arch label. The composite
   # action runs on the host only, so for cross-arch we invoke its build-deb.sh
   # directly in the container, as the action's README prescribes. armhf
   # (linux/arm/v7) runs natively on the aarch64 runner, so no qemu is needed.
   # The kuiper images are pulled anonymously from Cloudsmith (adi/containers is
-  # public).
-  build_arm:
+  # public); debian/ubuntu come from Docker Hub.
+  build_container:
     runs-on: ${{matrix.runner}}
     needs: identify_version
     strategy:
@@ -110,15 +110,20 @@ jobs:
             architecture: armhf
             platform_flag: "--platform linux/arm/v7"
           - runner: ubuntu-24.04-arm
-            docker_image: docker.cloudsmith.io/adi/containers/kuiper_basic_64:latest
+            docker_image: debian:latest
             distro: debian
             architecture: arm64
             platform_flag: ""
           - runner: ubuntu-24.04-arm
-            docker_image: docker.cloudsmith.io/adi/containers/kuiper_basic_32:latest
+            docker_image: debian:latest
             distro: debian
             architecture: armhf
             platform_flag: "--platform linux/arm/v7"
+          - runner: ubuntu:26.04
+            docker_image: ubuntu:26.04
+            distro: ubuntu-26.04
+            architecture: amd64
+            platform_flag: ""
 
     steps:
     - name: Checkout code repository
