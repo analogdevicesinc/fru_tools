@@ -119,7 +119,7 @@ jobs:
             distro: debian
             architecture: armhf
             platform_flag: "--platform linux/arm/v7"
-          - runner: ubuntu:26.04
+          - runner: ubuntu:latest
             docker_image: ubuntu:26.04
             distro: ubuntu-26.04
             architecture: amd64
