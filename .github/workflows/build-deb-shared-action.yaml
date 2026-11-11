@@ -48,17 +48,20 @@ jobs:
 
   # amd64 builds natively on the host runner via the composite action.
   build_amd64:
-    runs-on: ubuntu-latest
+    runs-on: ${{matrix.runner}}
     needs: identify_version
+    strategy:
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-26.04]
     steps:
     - name: Checkout code repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         path: ${{env.APP_NAME}}
 
     - name: Create debian package
       id: build_deb
-      uses: analogdevicesinc/shared-actions/deb-generator-action@main
+      uses: analogdevicesinc/shared-actions/deb-generator-action@114160b9f6dc3d27707d8acc8d3eee31714c0548 # main
       with:
         version: ${{needs.identify_version.outputs.app-version}}
         working-directory: ${{env.APP_NAME}}
@@ -75,9 +78,9 @@ jobs:
         .github/scripts/verify_install.sh
 
     - name: Upload debian artifacts to github
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
-        name: ${{env.APP_NAME}}-ubuntu
+        name: ${{env.APP_NAME}}-${{matrix.runner}}
         path: |
           ${{steps.build_deb.outputs.artifact-dir}}/*.deb
           ${{steps.build_deb.outputs.artifact-dir}}/*.dsc
@@ -85,38 +88,52 @@ jobs:
           ${{steps.build_deb.outputs.artifact-dir}}/*.orig.tar.gz
         if-no-files-found: error
 
-  # arm64/armhf build inside kuiper and debian trixie containers on the arm
-  # runner, matching build.yaml's distro/arch coverage. The composite action
-  # runs on the host only, so for cross-arch we invoke its build-deb.sh directly
-  # in the container, as the action's README prescribes. armhf (linux/arm/v7)
-  # runs natively on the aarch64 runner, so no qemu is needed. The kuiper images
-  # are pulled anonymously from Cloudsmith (adi/containers is public).
-  build_arm:
-    runs-on: ubuntu-24.04-arm
+  # Container builds (kuiper/debian arm64/armhf on the arm runner),
+  # one matrix row per distro/arch label. The composite
+  # action runs on the host only, so for cross-arch we invoke its build-deb.sh
+  # directly in the container, as the action's README prescribes. armhf
+  # (linux/arm/v7) runs natively on the aarch64 runner, so no qemu is needed.
+  # The kuiper images are pulled anonymously from Cloudsmith (adi/containers is
+  # public); debian comes from Docker Hub.
+  build_container:
+    runs-on: ${{matrix.runner}}
     needs: identify_version
     strategy:
       fail-fast: false
       matrix:
         include:
-          - image: docker.cloudsmith.io/adi/containers/kuiper_basic_64:latest
+          - runner: ubuntu-24.04-arm
+            docker_image: docker.cloudsmith.io/adi/containers/kuiper_basic_64@sha256:2a4b203ca34cf660339f8d8a5b32d290ae3c4918e18c0473902e2c12c86ca129
             distro: kuiper
             architecture: arm64
             platform_flag: ""
-          - image: docker.cloudsmith.io/adi/containers/kuiper_basic_32:latest
+          - runner: ubuntu-24.04-arm
+            docker_image: docker.cloudsmith.io/adi/containers/kuiper_basic_32@sha256:ce9c5eba9dc120595e42142665aa11ded7317181c01c14c190e86835cfef9c8a
             distro: kuiper
+            architecture: armhf
+            platform_flag: "--platform linux/arm/v7"
+          - runner: ubuntu-24.04-arm
+            docker_image: debian:latest
+            distro: debian
+            architecture: arm64
+            platform_flag: ""
+          - runner: ubuntu-24.04-arm
+            docker_image: debian:latest
+            distro: debian
             architecture: armhf
             platform_flag: "--platform linux/arm/v7"
 
     steps:
     - name: Checkout code repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         path: ${{env.APP_NAME}}
 
     - name: Checkout shared-actions
-      uses: actions/checkout@v6
+      uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         repository: analogdevicesinc/shared-actions
+        ref: 114160b9f6dc3d27707d8acc8d3eee31714c0548 # main
         path: shared-actions
 
     - name: Start persistent container
@@ -126,7 +143,7 @@ jobs:
             -v "$GITHUB_WORKSPACE:/work" \
             -w /work \
             -e GITHUB_WORKSPACE=/work \
-            ${{matrix.image}} tail -f /dev/null
+            ${{matrix.docker_image}} tail -f /dev/null
 
     - name: Install container prerequisites
       run: |
@@ -153,7 +170,7 @@ jobs:
         docker exec -w /work/${{env.APP_NAME}} builder bash .github/scripts/verify_install.sh
 
     - name: Upload debian artifacts to github
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: ${{env.APP_NAME}}-${{matrix.distro}}-${{matrix.architecture}}
         path: |
