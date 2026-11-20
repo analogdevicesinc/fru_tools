@@ -41,10 +41,10 @@ jobs:
             | tail -1) || true
 
         if [[ -n "$latest_tag" ]]; then
-            app_version="${latest_tag#v}+${{github.sha}}"
+            app_version="${latest_tag#v}"
         else
             echo "No version tag found. Setting default version"
-            app_version="0.0.1+${{github.sha}}"
+            app_version="0.0.1"
         fi
 
         echo "Version to use $app_version"
@@ -146,7 +146,7 @@ jobs:
       uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
       with:
         repository: analogdevicesinc/shared-actions
-        ref: 114160b9f6dc3d27707d8acc8d3eee31714c0548 # main
+        ref: main
         path: shared-actions
 
     - name: Start persistent container
