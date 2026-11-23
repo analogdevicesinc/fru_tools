@@ -124,17 +124,17 @@ jobs:
             platform_flag: "--platform linux/arm/v7"
             version_suffix: +Debian13
           - runner: ubuntu-24.04-arm
-            docker_image: debian:latest
+            docker_image: debian:forky
             distro: debian
             architecture: arm64
             platform_flag: ""
-            version_suffix: +Debian13
+            version_suffix: +Debian14
           - runner: ubuntu-24.04-arm
-            docker_image: debian:latest
+            docker_image: debian:forky
             distro: debian
             architecture: armhf
             platform_flag: "--platform linux/arm/v7"
-            version_suffix: +Debian13
+            version_suffix: +Debian14
 
     steps:
     - name: Checkout code repository
